@@ -208,10 +208,12 @@ export abstract class UIComponent<
   ): void {
     const propStore = this.props[`$${prop}`] as WritableAtom<Infer<Props[Prop]>>;
     this.effect(store, (value) => {
-      propStore.set(options?.get ? options.get(value) : (value as unknown as Infer<Props[Prop]>));
+      const next = options?.get ? options.get(value) : (value as unknown as Infer<Props[Prop]>);
+      if (!Object.is(propStore.get(), next)) propStore.set(next);
     });
     this.effect(propStore, (value) => {
-      store.set(options?.set ? options.set(value) : (value as unknown as Value));
+      const next = options?.set ? options.set(value) : (value as unknown as Value);
+      if (!Object.is(store.get(), next)) store.set(next);
     });
   }
 
