@@ -34,8 +34,9 @@ export function parseWithSchema<S extends AnySchema>(
     throw new TypeError(`${context}: async schemas not supported`);
   }
   if (result.issues) {
-    console.warn(`${context}: invalid value "${value}"`, result.issues);
-    return null as Infer<S>;
+    throw new TypeError(
+      `${context}: invalid value ${JSON.stringify(value)} — ${result.issues.map((i) => i.message).join(", ")}`,
+    );
   }
   return result.value as Infer<S>;
 }
