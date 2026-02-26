@@ -148,6 +148,7 @@ export function createComponent<
   setupFn: SetupFn<Props, Refs>,
 ): ComponentCtor<Name, Props, Refs, Mixin> {
   if (customElements.get(name)) {
+    console.warn(`${name} already defined, reusing existing class`);
     return customElements.get(name) as ComponentCtor<Name, Props, Refs, Mixin>;
   }
 
