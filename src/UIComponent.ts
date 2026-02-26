@@ -127,11 +127,7 @@ export abstract class UIComponent<
    * Cache is cleared on disconnect.
    */
   withCache<T>(key: string, compute: () => T): T {
-    if (this.#cache.has(key)) {
-      const stored = this.#cache.get(key);
-      invariant(stored, `${this.constructor.name}: missing cached value for key ${key}`);
-      return stored as T;
-    }
+    if (this.#cache.has(key)) return this.#cache.get(key) as T;
     const value = compute();
     this.#cache.set(key, value);
     return value;
