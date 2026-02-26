@@ -3,12 +3,7 @@ import { atom } from "nanostores";
 
 import type { AnySchema, Infer, InferRefs, PropsSchema, ReactiveProps, RefsSchema } from "./types";
 import { UIComponent, type ComponentCtor, type SetupFn } from "./UIComponent";
-
-export function invariant(condition: unknown, message: string | Error): asserts condition {
-  if (!condition) {
-    throw message instanceof Error ? message : new Error(message);
-  }
-}
+import { invariant } from "./utils.ts";
 
 function hasBlockingCustomElementAncestor(
   element: Element,

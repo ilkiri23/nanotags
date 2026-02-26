@@ -1,5 +1,5 @@
 import { effect, type ReadableAtom, type StoreValue, type WritableAtom } from "nanostores";
-import { invariant } from "./helpers";
+import { invariant } from "./utils.ts";
 
 import type {
   ComponentProps,
@@ -14,22 +14,9 @@ type StoreValues<Stores extends ReadableAtom<any>[]> = {
   [Index in keyof Stores]: StoreValue<Stores[Index]>;
 };
 
-export type SetupContext<Props extends PropsSchema, Refs extends RefsSchema> = Pick<
+export type SetupContext<Props extends PropsSchema, Refs extends RefsSchema> = Omit<
   UIComponent<Props, Refs>,
-  | "host"
-  | "refs"
-  | "props"
-  | "on"
-  | "effect"
-  | "emit"
-  | "registerCleanup"
-  | "consume"
-  | "bind"
-  | "render"
-  | "renderList"
-  | "getElement"
-  | "getElements"
-  | "withCache"
+  keyof HTMLElement
 >;
 
 export type SetupFn<Props extends PropsSchema, Refs extends RefsSchema> = (
