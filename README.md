@@ -285,13 +285,13 @@ Memoize a value for the component's connected lifecycle. Cache clears on disconn
 const parsed = ctx.withCache("config", () => JSON.parse(heavy));
 ```
 
-#### `registerCleanup(callback)`
+#### `onCleanup(callback)`
 
 Register arbitrary teardown logic to run on disconnect.
 
 ```typescript
 const raf = requestAnimationFrame(tick);
-ctx.registerCleanup(() => cancelAnimationFrame(raf));
+ctx.onCleanup(() => cancelAnimationFrame(raf));
 ```
 
 ## Setup Return Value (Mixin)

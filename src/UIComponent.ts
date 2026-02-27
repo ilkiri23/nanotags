@@ -51,7 +51,7 @@ export abstract class UIComponent<
   }
 
   /** Registers a cleanup function to be called when the component is disconnected. */
-  registerCleanup(callback: VoidFunction): void {
+  onCleanup(callback: VoidFunction): void {
     this.#cleanups.push(callback);
   }
 
@@ -91,7 +91,7 @@ export abstract class UIComponent<
     const targets = Array.isArray(target) ? target : [target];
     for (const t of targets) {
       t.addEventListener(type, listener as EventListener, options);
-      this.registerCleanup(() => t.removeEventListener(type, listener as EventListener, options));
+      this.onCleanup(() => t.removeEventListener(type, listener as EventListener, options));
     }
   }
 
@@ -177,7 +177,7 @@ export abstract class UIComponent<
     callback: (...values: StoreValues<Stores>) => void,
   ): void;
   effect(storeOrStores: any, callback: any): void {
-    this.registerCleanup(effect(storeOrStores, callback));
+    this.onCleanup(effect(storeOrStores, callback));
   }
 
   /**
