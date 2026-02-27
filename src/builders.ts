@@ -7,7 +7,12 @@ export const propBuilders: {
   number: () => AnySchema;
   boolean: () => AnySchema;
 } = {
-  string: () => v.pipe(v.unknown(), v.toString()),
+  string: () =>
+    v.pipe(
+      v.unknown(),
+      v.transform((val) => (val == null ? "" : val)),
+      v.toString(),
+    ),
   number: () => v.pipe(v.unknown(), v.toNumber()),
   boolean: () =>
     v.pipe(
