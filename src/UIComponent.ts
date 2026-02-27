@@ -110,7 +110,12 @@ export abstract class UIComponent<
   emit(nameOrEvent: string | Event, detail?: unknown, options?: CustomEventInit): void {
     if (nameOrEvent instanceof Event) return void this.dispatchEvent(nameOrEvent);
     this.dispatchEvent(
-      new CustomEvent(nameOrEvent, { bubbles: true, composed: true, ...options, detail }),
+      new CustomEvent(nameOrEvent, {
+        bubbles: true,
+        composed: true,
+        ...options,
+        detail,
+      }),
     );
   }
 

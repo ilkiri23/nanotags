@@ -4,6 +4,7 @@ import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
 import { ComponentBuilder, define } from "./define";
 import type { ReservedKeys } from "./UIComponent";
 import { cleanup, mount, uniqueTag } from "../tests/utils";
+import type { ReactiveProps } from "./types";
 
 afterEach(() => cleanup());
 
@@ -85,6 +86,47 @@ describe("define", () => {
       const tag = uniqueTag("ty") as "x-ty-203";
       const Component = define(tag).setup(() => {});
       expectTypeOf(Component.elementName).toEqualTypeOf<"x-ty-203">();
+    });
+  });
+
+  describe("prop store type inference", () => {
+    it("fluent: $-prefixed stores infer concrete types", () => {
+      const tag = uniqueTag("ty") as "x-ty-inf1";
+      const Component = define(tag)
+        .withProps((p) => ({ val: p.string(), count: p.number() }))
+        .setup(() => {});
+      const el = new Component();
+      expectTypeOf(el.props.$val).toEqualTypeOf<WritableAtom<string>>();
+      expectTypeOf(el.props.$count).toEqualTypeOf<WritableAtom<number>>();
+      expectTypeOf(el.props.$val.get()).toEqualTypeOf<string>();
+      expectTypeOf(el.props.$count.get()).toEqualTypeOf<number>();
+    });
+
+    it("fluent: boolean prop infers WritableAtom<boolean>", () => {
+      const tag = uniqueTag("ty") as "x-ty-inf2";
+      const Component = define(tag)
+        .withProps((p) => ({ active: p.boolean() }))
+        .setup(() => {});
+      const el = new Component();
+      expectTypeOf(el.props.$active).toEqualTypeOf<WritableAtom<boolean>>();
+    });
+
+    it("chained withProps accumulates types", () => {
+      const tag = uniqueTag("ty") as "x-ty-inf3";
+      const Component = define(tag)
+        .withProps((p) => ({ a: p.string() }))
+        .withProps((p) => ({ b: p.number() }))
+        .setup(() => {});
+      const el = new Component();
+      expectTypeOf(el.props.$a).toEqualTypeOf<WritableAtom<string>>();
+      expectTypeOf(el.props.$b).toEqualTypeOf<WritableAtom<number>>();
+    });
+
+    it("no props: props is empty object", () => {
+      const tag = uniqueTag("ty") as "x-ty-inf4";
+      const Component = define(tag).setup(() => {});
+      const el = new Component();
+      expectTypeOf(el.props).toEqualTypeOf<ReactiveProps<Record<string, never>>>();
     });
   });
 

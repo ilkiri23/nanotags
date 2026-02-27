@@ -1,11 +1,13 @@
 import * as v from "valibot";
 
-import type { AnySchema, ListRefMarker, RefOptions, SingleRefMarker } from "./types";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+
+import type { ListRefMarker, RefOptions, SingleRefMarker } from "./types";
 
 export const propBuilders: {
-  string: () => AnySchema;
-  number: () => AnySchema;
-  boolean: () => AnySchema;
+  string: () => StandardSchemaV1<unknown, string>;
+  number: () => StandardSchemaV1<unknown, number>;
+  boolean: () => StandardSchemaV1<unknown, boolean>;
 } = {
   string: () =>
     v.pipe(
@@ -48,7 +50,7 @@ function one(tagOrOptions?: string | RefOptions, options?: RefOptions): SingleRe
     ...(tag && { __tag: tag }),
     ...(opts && { __options: opts }),
     schema: buildRefSchema(tag),
-  } as unknown as SingleRefMarker;
+  } as SingleRefMarker;
 }
 
 function many(): ListRefMarker;
@@ -69,7 +71,10 @@ function many(tagOrOptions?: string | RefOptions, options?: RefOptions): ListRef
     ...(tag && { __tag: tag }),
     ...(opts && { __options: opts }),
     schema: buildRefSchema(tag),
-  } as unknown as ListRefMarker;
+  } as ListRefMarker;
 }
 
-export const refBuilders: { one: typeof one; many: typeof many } = { one, many };
+export const refBuilders: { one: typeof one; many: typeof many } = {
+  one,
+  many,
+};
