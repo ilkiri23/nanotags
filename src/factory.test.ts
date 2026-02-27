@@ -1,0 +1,316 @@
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+
+import { propBuilders, refBuilders } from "./builders";
+import { collectRefs, createComponent, createReactiveProps, parseWithSchema } from "./factory";
+import { cleanup, createHostWith, mount, uniqueTag } from "../tests/utils";
+
+afterEach(() => cleanup());
+
+describe("parseWithSchema", () => {
+  const schema = propBuilders.string();
+
+  it("returns parsed value for valid input", () => {
+    expect(parseWithSchema(schema, "hello", "test")).toBe("hello");
+  });
+
+  it("throws TypeError with context for invalid input", () => {
+    const badSchema = propBuilders.boolean();
+    expect(() => parseWithSchema(badSchema, "yes", "ctx")).toThrow(TypeError);
+    expect(() => parseWithSchema(badSchema, "yes", "ctx")).toThrow(/ctx/);
+  });
+
+  it("throws TypeError for async schema", () => {
+    const asyncSchema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: () => Promise.resolve({ value: "x" }),
+      },
+    };
+    expect(() => parseWithSchema(asyncSchema, "x", "ctx")).toThrow(/async schemas not supported/);
+  });
+
+  it("error includes JSON of invalid value", () => {
+    const badSchema = propBuilders.boolean();
+    expect(() => parseWithSchema(badSchema, "yes", "ctx")).toThrow(/"yes"/);
+  });
+});
+
+describe("createReactiveProps", () => {
+  it("creates $-prefixed atom stores for each prop", () => {
+    const div = document.createElement("div");
+    const { stores } = createReactiveProps(div, { title: propBuilders.string() });
+    expect(stores.$title).toBeDefined();
+    expect(stores.$title.get()).toBe("");
+  });
+
+  it("initial store value from getAttribute", () => {
+    const div = document.createElement("div");
+    div.setAttribute("count", "7");
+    const { stores } = createReactiveProps(div, { count: propBuilders.number() });
+    expect(stores.$count.get()).toBe(7);
+  });
+
+  it("getter reads from store", () => {
+    const div = document.createElement("div");
+    div.setAttribute("title", "hi");
+    createReactiveProps(div, { title: propBuilders.string() });
+    expect(div.title).toBe("hi");
+  });
+
+  it("setter with string calls setAttribute", () => {
+    const div = document.createElement("div");
+    createReactiveProps(div, { title: propBuilders.string() });
+    div.title = "new";
+    expect(div.getAttribute("title")).toBe("new");
+  });
+
+  it("setter with null calls removeAttribute", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { label: string | null };
+    div.setAttribute("label", "old");
+    createReactiveProps(div, { label: propBuilders.string() });
+    div.label = null;
+    expect(div.hasAttribute("label")).toBe(false);
+  });
+});
+
+describe("collectRefs", () => {
+  describe("single refs", () => {
+    it("finds by default [data-ref=key] selector", () => {
+      const host = createHostWith('<span data-ref="title">Hello</span>');
+      const refs = collectRefs(host, { title: refBuilders.one() });
+      expect(refs.title).toBe(host.querySelector('[data-ref="title"]'));
+    });
+
+    it("finds by custom selector", () => {
+      const host = createHostWith('<span class="custom">Hello</span>');
+      const refs = collectRefs(host, { title: refBuilders.one({ selector: ".custom" }) });
+      expect(refs.title).toBe(host.querySelector(".custom"));
+    });
+
+    it("throws when not found", () => {
+      const host = createHostWith("");
+      expect(() => collectRefs(host, { title: refBuilders.one() })).toThrow(
+        /Missing elements.*title/,
+      );
+    });
+
+    it("aggregates all missing refs in one error", () => {
+      const host = createHostWith("");
+      expect(() => collectRefs(host, { a: refBuilders.one(), b: refBuilders.one() })).toThrow(
+        /a, b/,
+      );
+    });
+
+    it("validates element vs schema (tag mismatch throws)", () => {
+      const host = createHostWith('<span data-ref="btn">click</span>');
+      expect(() => collectRefs(host, { btn: refBuilders.one("button") })).toThrow(
+        /Expected <button>/,
+      );
+    });
+  });
+
+  describe("list refs", () => {
+    it("finds all matching elements", () => {
+      const host = createHostWith('<i data-ref="items">1</i><i data-ref="items">2</i>');
+      const refs = collectRefs(host, { items: refBuilders.many() });
+      expect(refs.items).toHaveLength(2);
+      expect(refs.items[0]).toBe(host.querySelectorAll('[data-ref="items"]')[0]);
+      expect(refs.items[1]).toBe(host.querySelectorAll('[data-ref="items"]')[1]);
+    });
+
+    it("throws when none found", () => {
+      const host = createHostWith("");
+      expect(() => collectRefs(host, { items: refBuilders.many() })).toThrow(
+        /Missing elements.*items/,
+      );
+    });
+
+    it("validates each element", () => {
+      const host = createHostWith('<div data-ref="btns">x</div>');
+      expect(() => collectRefs(host, { btns: refBuilders.many("button") })).toThrow(
+        /Expected <button>/,
+      );
+    });
+  });
+
+  describe("custom-element ancestor blocking", () => {
+    it("skips ref inside nested custom element", () => {
+      const tag = uniqueTag("inner");
+      customElements.define(tag, class extends HTMLElement {});
+      const host = createHostWith(`<${tag}><span data-ref="nested">inside</span></${tag}>`);
+      expect(() => collectRefs(host, { nested: refBuilders.one() })).toThrow(/Missing/);
+    });
+
+    it("includes ref when ancestor in includeComponents", () => {
+      const tag = uniqueTag("allowed");
+      customElements.define(tag, class extends HTMLElement {});
+      const host = createHostWith(`<${tag}><span data-ref="nested">inside</span></${tag}>`);
+      const refs = collectRefs(host, {
+        nested: refBuilders.one({ includeComponents: [tag] }),
+      });
+      expect(refs.nested.tagName).toBe("SPAN");
+    });
+
+    it("does not skip when custom element IS the host", () => {
+      const tag = uniqueTag("host-ce");
+      class CE extends HTMLElement {}
+      customElements.define(tag, CE);
+      const host = createHostWith(tag, '<span data-ref="child">ok</span>');
+      const refs = collectRefs(host, { child: refBuilders.one() });
+      expect(refs.child.tagName).toBe("SPAN");
+    });
+
+    it("includes ref when ancestors in includeComponents", () => {
+      const outer = uniqueTag("outer");
+      const inner = uniqueTag("deep");
+      customElements.define(outer, class extends HTMLElement {});
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        `<${outer}><${inner}><span data-ref="deep">x</span></${inner}></${outer}>`,
+      );
+      const refs = collectRefs(host, {
+        deep: refBuilders.one({ includeComponents: [outer, inner] }),
+      });
+      expect(refs.deep.tagName).toBe("SPAN");
+    });
+
+    it("multiple nesting levels are ignored", () => {
+      const outer = uniqueTag("outer");
+      const inner = uniqueTag("deep");
+      customElements.define(outer, class extends HTMLElement {});
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        `<${outer}><${inner}><span data-ref="deep">x</span></${inner}></${outer}>`,
+      );
+      expect(() => collectRefs(host, { deep: refBuilders.one() })).toThrow(/Missing/);
+    });
+  });
+});
+
+describe("createComponent", () => {
+  describe("registration", () => {
+    it("defines element, returns ctor with elementName", () => {
+      const tag = uniqueTag("reg");
+      const Component = createComponent(tag, {}, {}, () => {});
+      expect(Component.elementName).toBe(tag);
+      expect(customElements.get(tag)).toBe(Component);
+    });
+
+    it("instance is instanceof ctor", () => {
+      const tag = uniqueTag("inst");
+      const Component = createComponent(tag, {}, {}, () => {});
+      const el = document.createElement(tag);
+      expect(el).toBeInstanceOf(Component);
+    });
+
+    it("same tag twice → reuse with console.warn", () => {
+      const tag = uniqueTag("dup");
+      const Component1 = createComponent(tag, {}, {}, () => {});
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const Component2 = createComponent(tag, {}, {}, () => {});
+      expect(Component2).toBe(Component1);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("already defined"));
+      warn.mockRestore();
+    });
+
+    it("elementName is literal type", () => {
+      const tag = uniqueTag("ty") as "x-ty-100";
+      const Component = createComponent(tag, {}, {}, () => {});
+      expectTypeOf(Component.elementName).toEqualTypeOf<"x-ty-100">();
+    });
+
+    it("instance exposes props", () => {
+      const tag = uniqueTag("ty") as "x-ty-101";
+      const Component = createComponent(tag, {}, {}, () => {});
+      const el = new Component();
+      expectTypeOf(el.props).toBeObject();
+    });
+  });
+
+  describe("observedAttributes", () => {
+    it("matches propsSchema keys", () => {
+      const tag = uniqueTag("obs");
+      const Component = createComponent(
+        tag,
+        { foo: propBuilders.string(), bar: propBuilders.number() },
+        {},
+        () => {},
+      );
+      expect(
+        (Component as unknown as typeof HTMLElement & { observedAttributes: string[] })
+          .observedAttributes,
+      ).toEqual(["foo", "bar"]);
+    });
+  });
+
+  describe("attributeChangedCallback", () => {
+    it("updates prop store on attribute change", () => {
+      const tag = uniqueTag("attr");
+      const Component = createComponent(tag, { val: propBuilders.string() }, {}, () => {});
+      const el = new Component();
+      el.setAttribute("val", "updated");
+      expect(el.props.$val.get()).toBe("updated");
+    });
+
+    it("no-ops when old === new", () => {
+      const tag = uniqueTag("noop");
+      const Component = createComponent(tag, { val: propBuilders.string() }, {}, () => {});
+      const el = new Component();
+      el.setAttribute("val", "same");
+      const spy = vi.fn();
+      el.props.$val.listen(spy);
+      // Simulate attributeChangedCallback with same old/new
+      (el as any).attributeChangedCallback("val", "same", "same");
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("connectedCallback", () => {
+    it("calls setupFn", () => {
+      const tag = uniqueTag("setup");
+      const setupFn = vi.fn();
+      createComponent(tag, {}, {}, setupFn);
+      mount(`<${tag}></${tag}>`);
+      expect(setupFn).toHaveBeenCalledOnce();
+    });
+
+    it("assigns mixin from setup return value", () => {
+      const tag = uniqueTag("mixin");
+      createComponent(tag, {}, {}, () => ({ greet: () => "hi" }));
+      const el = mount(`<${tag}></${tag}>`);
+      expect((el as any).greet()).toBe("hi");
+    });
+  });
+
+  describe("prop reflection round-trip", () => {
+    it("setAttribute → store → getter", () => {
+      const tag = uniqueTag("rt1");
+      const Component = createComponent(tag, { name: propBuilders.string() }, {}, () => {});
+      const el = new Component();
+      el.setAttribute("name", "Alice");
+      expect(el.props.$name.get()).toBe("Alice");
+      expect((el as any).name).toBe("Alice");
+    });
+
+    it("property setter → setAttribute → store", () => {
+      const tag = uniqueTag("rt2");
+      const Component = createComponent(tag, { name: propBuilders.string() }, {}, () => {});
+      const el = new Component();
+      (el as any).name = "Bob";
+      expect(el.getAttribute("name")).toBe("Bob");
+      expect(el.props.$name.get()).toBe("Bob");
+    });
+
+    it("same-value setAttribute skipped (oldValue === newValue guard)", () => {
+      const tag = uniqueTag("rt3");
+      const Component = createComponent(tag, { name: propBuilders.string() }, {}, () => {});
+      const el = new Component();
+      el.setAttribute("name", "same");
+      const spy = vi.fn();
+      el.props.$name.listen(spy);
+      el.setAttribute("name", "same");
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+});
