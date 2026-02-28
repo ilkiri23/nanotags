@@ -20,6 +20,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
+    },
+    "./render": {
+      "types": "./dist/render.d.mts",
+      "import": "./dist/render.mjs"
     }
   },
   "files": [
@@ -72,7 +76,11 @@
   "size-limit": [
     {
       "path": "dist/index.mjs",
-      "limit": "2906 B"
+      "limit": "2667 B"
+    },
+    {
+      "path": "dist/render.mjs",
+      "limit": "208 B"
     }
   ],
   "nano-staged": {

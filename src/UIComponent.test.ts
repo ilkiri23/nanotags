@@ -116,8 +116,6 @@ describe("lifecycle cleanup", () => {
     expectTypeOf<Ctx>().toHaveProperty("emit");
     expectTypeOf<Ctx>().toHaveProperty("effect");
     expectTypeOf<Ctx>().toHaveProperty("bind");
-    expectTypeOf<Ctx>().toHaveProperty("render");
-    expectTypeOf<Ctx>().toHaveProperty("renderList");
     expectTypeOf<Ctx>().toHaveProperty("withCache");
     expectTypeOf<Ctx>().toHaveProperty("onCleanup");
     expectTypeOf<Ctx>().toHaveProperty("consume");
@@ -506,76 +504,5 @@ describe("bind", () => {
     $ext.listen(extSpy);
     $ext.set("v");
     expect(extSpy).not.toHaveBeenCalled();
-  });
-});
-
-describe("render", () => {
-  it("clones template by name", () => {
-    const tag = uniqueTag("rnd");
-    let fragment: DocumentFragment | undefined;
-    define(tag, (ctx) => {
-      fragment = ctx.render("item");
-    });
-    mount(`<${tag}><template name="item"><span class="tpl">hello</span></template></${tag}>`);
-    expect(fragment).toBeDefined();
-    expect(fragment?.querySelector(".tpl")?.textContent).toBe("hello");
-  });
-
-  it("throws on missing template", () => {
-    const tag = uniqueTag("rnd");
-    define(tag, (ctx) => {
-      ctx.render("nope");
-    });
-    expect(() => mount(`<${tag}></${tag}>`)).toThrow(/missing/);
-  });
-
-  it("fill function called with data", () => {
-    const tag = uniqueTag("rnd");
-    let fragment: DocumentFragment | undefined;
-    define(tag, (ctx) => {
-      fragment = ctx.render("card", { title: "Hi" }, (tpl, data) => {
-        tpl.querySelector(".title")!.textContent = data.title;
-      });
-    });
-    mount(`<${tag}><template name="card"><div class="title"></div></template></${tag}>`);
-    expect(fragment?.querySelector(".title")?.textContent).toBe("Hi");
-  });
-});
-
-describe("renderList", () => {
-  it("one clone per item, correct order", () => {
-    const tag = uniqueTag("rl");
-    let fragment: DocumentFragment | undefined;
-    define(tag, (ctx) => {
-      fragment = ctx.renderList("row", ["a", "b", "c"], (tpl, item) => {
-        tpl.querySelector(".val")!.textContent = item;
-      });
-    });
-    mount(`<${tag}><template name="row"><span class="val"></span></template></${tag}>`);
-    const spans = Array.from(fragment?.querySelectorAll(".val") ?? []);
-    expect(spans).toHaveLength(3);
-    expect(spans[0]?.textContent).toBe("a");
-    expect(spans[1]?.textContent).toBe("b");
-    expect(spans[2]?.textContent).toBe("c");
-  });
-
-  it("index passed correctly", () => {
-    const tag = uniqueTag("rl");
-    const indices: number[] = [];
-    define(tag, (ctx) => {
-      ctx.renderList("row", ["x", "y"], (_tpl, _item, i) => indices.push(i));
-    });
-    mount(`<${tag}><template name="row"><span></span></template></${tag}>`);
-    expect(indices).toEqual([0, 1]);
-  });
-
-  it("empty items → empty fragment", () => {
-    const tag = uniqueTag("rl");
-    let fragment: DocumentFragment | undefined;
-    define(tag, (ctx) => {
-      fragment = ctx.renderList("row", [], () => {});
-    });
-    mount(`<${tag}><template name="row"><span></span></template></${tag}>`);
-    expect(fragment?.childNodes).toHaveLength(0);
   });
 });

@@ -218,36 +218,4 @@ export abstract class UIComponent<
       if (!Object.is(store.get(), next)) store.set(next);
     });
   }
-
-  /**
-   * Clones a `<template name="...">` inside this element and optionally fills it with `data`.
-   * Returns the resulting `DocumentFragment`.
-   */
-  render<T>(
-    name: string,
-    data?: T,
-    fill?: (template: DocumentFragment, data: T) => void,
-  ): DocumentFragment {
-    const template = this.getElement<"template">(`template[name="${name}"]`);
-    const clone = template.content.cloneNode(true) as DocumentFragment;
-    if (fill && data !== undefined) fill(clone, data);
-    return clone;
-  }
-
-  /**
-   * Renders `<template name="...">` for each item in `items`, filling each clone via `fill`.
-   * Returns a single `DocumentFragment` containing all rendered items.
-   */
-  renderList<T>(
-    name: string,
-    items: T[],
-    fill: (template: DocumentFragment, item: T, index: number) => void,
-  ): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-    items.forEach((item, index) => {
-      const itemFragment = this.render(name, item, (clone, data) => fill(clone, data, index));
-      fragment.append(itemFragment);
-    });
-    return fragment;
-  }
 }

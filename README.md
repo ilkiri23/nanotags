@@ -77,6 +77,7 @@ In the fluent form, `withProps` and `withRefs` are optional and can appear in an
 ## Props
 
 Declare validated, reactive attributes via `withProps`. Each prop becomes:
+
 - An observed HTML attribute (auto-synced via `attributeChangedCallback`)
 - A nanostores `WritableAtom` at `ctx.props.$propName`
 - A typed getter/setter on the element instance
@@ -129,10 +130,11 @@ To get proper typing with a custom selector, pass the tag name as a generic para
 This also works with custom element tag names — if you [augment `HTMLElementTagNameMap`](#augmenting-htmlelementtagnamemap), refs to your own components are fully typed:
 
 ```typescript
-r.one("x-child")  // typed as InstanceType<typeof XChild>, validated at runtime
+r.one("x-child"); // typed as InstanceType<typeof XChild>, validated at runtime
 ```
 
 Both builders throw if refs can't be resolved:
+
 - `r.one()` — throws if the element is missing
 - `r.many()` — throws if no elements found
 
@@ -142,7 +144,7 @@ Refs inside nested custom elements are ignored by default, keeping components in
 
 ```typescript
 // x-tabs needs to find <button> refs rendered by each <x-tab>
-tabs: r.many("button", { includeComponents: ["x-tab"] })
+tabs: r.many("button", { includeComponents: ["x-tab"] });
 ```
 
 ## Setup Context
@@ -166,7 +168,9 @@ ctx.effect(ctx.props.$count, (count) => {
   ctx.refs.display.textContent = String(count);
 });
 
-ctx.effect([storeA, storeB], (a, b) => { /* ... */ });
+ctx.effect([storeA, storeB], (a, b) => {
+  /* ... */
+});
 ```
 
 #### `bind(prop, store, options?)`
@@ -179,8 +183,8 @@ ctx.bind("title", $name);
 
 // With transforms across the boundary
 ctx.bind("count", $offset, {
-  get: (offset) => offset * 2,      // store → prop
-  set: (count) => count / 2,        // prop → store
+  get: (offset) => offset * 2, // store → prop
+  set: (count) => count / 2, // prop → store
 });
 ```
 
@@ -191,9 +195,15 @@ ctx.bind("count", $offset, {
 Attach event listeners with automatic cleanup on disconnect. Accepts a single element, an array of elements, `document`, or `window`.
 
 ```typescript
-ctx.on(ctx.refs.trigger, "click", (e) => { /* ... */ });
-ctx.on([...ctx.refs.items], "mouseenter", (e) => { /* ... */ });
-ctx.on(document, "keydown", (e) => { /* ... */ });
+ctx.on(ctx.refs.trigger, "click", (e) => {
+  /* ... */
+});
+ctx.on([...ctx.refs.items], "mouseenter", (e) => {
+  /* ... */
+});
+ctx.on(document, "keydown", (e) => {
+  /* ... */
+});
 ```
 
 #### `emit(name, detail?, options?)` / `emit(event)`
@@ -228,38 +238,6 @@ Query all matching elements. Throws if none found.
 const buttons = ctx.getElements("button"); // HTMLButtonElement[]
 ```
 
-### Templates
-
-The framework is designed to work with server-rendered or statically present markup. But sometimes content needs to be built dynamically — for that, define `<template>` elements inside your component and use these methods to clone and populate them.
-
-- `render(name, data?, fill?)` — clone a `<template name="...">`, optionally populate via `fill`
-- `renderList(name, items, fill)` — clone a template once per item, return a single `DocumentFragment`
-
-```html
-<x-user-list>
-  <ul data-ref="list"></ul>
-  <template name="row">
-    <li><span class="name"></span></li>
-  </template>
-</x-user-list>
-```
-
-```typescript
-const UserList = define("x-user-list")
-  .withRefs((r) => ({ list: r.one("ul") }))
-  .setup((ctx) => {
-    // $users is a nanostores store with an array of user objects. Whenever it updates, re-render the list:
-    ctx.effect($users, (users) => {
-      const fragment = ctx.renderList("row", users, (tpl, user) => {
-        ctx.getElement(tpl, ".name").textContent = user.name;
-      });
-      ctx.refs.list.replaceChildren(fragment);
-    });
-  });
-```
-
-For cases where `replaceChildren` causes flickering, consider DOM-diffing libraries like [micromorph](https://github.com/natemoo-re/micromorph), [morphdom](https://github.com/patrick-steele-idem/morphdom), or [nanomorph](https://github.com/choojs/nanomorph).
-
 ### Misc
 
 #### `consume(ComponentCtor)`
@@ -271,7 +249,9 @@ Find the nearest ancestor component of the given type — similar to React's `us
 const XTabs = define("x-tabs").setup((ctx) => {
   const tabs: HTMLElement[] = [];
   return {
-    register(tab: HTMLElement) { tabs.push(tab); },
+    register(tab: HTMLElement) {
+      tabs.push(tab);
+    },
   };
 });
 
@@ -298,6 +278,54 @@ const raf = requestAnimationFrame(tick);
 ctx.onCleanup(() => cancelAnimationFrame(raf));
 ```
 
+## Dynamic Templates
+
+Template-cloning utilities for dynamic content. Import from the separate `nano-wc/render` entry — only pay for them when you use them.
+
+```typescript
+import { render, renderList } from "nano-wc/render";
+```
+
+### `render(template, data?, fill?)`
+
+Clone an `HTMLTemplateElement` and optionally populate it with `data` via `fill`. Returns the `DocumentFragment`.
+
+```typescript
+const fragment = render(ctx.refs.cardTpl, { title: "Hi" }, (tpl, d) => {
+  tpl.querySelector(".title")!.textContent = d.title;
+});
+```
+
+### `renderList(template, items, fill)`
+
+Clone a template once per item, fill each clone, and return a single `DocumentFragment`. Hold a ref to the template element via `withRefs`.
+
+```html
+<x-user-list>
+  <ul data-ref="list"></ul>
+  <template data-ref="rowTpl">
+    <li><span class="name"></span></li>
+  </template>
+</x-user-list>
+```
+
+```typescript
+import { renderList } from "nano-wc/render";
+
+const UserList = define("x-user-list")
+  .withRefs((r) => ({ list: r.one("ul"), rowTpl: r.one("template") }))
+  .setup((ctx) => {
+    ctx.effect($users, (users) => {
+      const fragment = renderList(ctx.refs.rowTpl, users, (tpl, user) => {
+        ctx.getElement(tpl, ".name").textContent = user.name;
+      });
+      ctx.refs.list.replaceChildren(fragment);
+    });
+  });
+```
+
+For cases where `replaceChildren` causes flickering, consider DOM-diffing libraries like [micromorph](https://github.com/natemoo-re/micromorph), [morphdom](https://github.com/patrick-steele-idem/morphdom), or [nanomorph](https://github.com/choojs/nanomorph).
+
 ## Setup Return Value (Mixin)
 
 Returning an object from `setup` assigns its members to the element instance, fully typed on the constructor:
@@ -306,8 +334,12 @@ Returning an object from `setup` assigns its members to the element instance, fu
 const Timer = define("x-timer").setup((ctx) => {
   let id: number;
   return {
-    start() { id = setInterval(() => ctx.emit("tick"), 1000); },
-    stop()  { clearInterval(id); },
+    start() {
+      id = setInterval(() => ctx.emit("tick"), 1000);
+    },
+    stop() {
+      clearInterval(id);
+    },
   };
 });
 
@@ -324,7 +356,10 @@ el.start(); // typed
 ```typescript
 import type { TypedEvent } from "nano-wc";
 
-type TabsChangedEvent = TypedEvent<InstanceType<typeof XTabs>, { index: number }>;
+type TabsChangedEvent = TypedEvent<
+  InstanceType<typeof XTabs>,
+  { index: number }
+>;
 
 declare global {
   interface HTMLElementEventMap {
@@ -337,8 +372,8 @@ ctx.emit("tabs:changed", { index: 2 });
 
 // listening — anywhere in the app:
 ctx.on(tabsEl, "tabs:changed", (e) => {
-  e.target;  // XTabs instance
-  e.detail;  // { index: number }
+  e.target; // XTabs instance
+  e.detail; // { index: number }
 });
 ```
 
