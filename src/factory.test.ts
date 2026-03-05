@@ -95,6 +95,31 @@ describe("createReactiveProps", () => {
     div.label = null;
     expect(div.hasAttribute("label")).toBe(false);
   });
+
+  it("camelCase prop reads from kebab-case HTML attribute on init", () => {
+    const div = document.createElement("div");
+    div.setAttribute("default-size", "42");
+    const { stores } = createReactiveProps(div, { defaultSize: propBuilders.number() });
+    expect(stores.$defaultSize.get()).toBe(42);
+  });
+
+  it("camelCase prop setter writes kebab-case attribute", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { defaultSize: number };
+    createReactiveProps(div, { defaultSize: propBuilders.number() });
+    div.defaultSize = 10;
+    expect(div.getAttribute("default-size")).toBe("10");
+    expect(div.hasAttribute("defaultSize")).toBe(false);
+  });
+
+  it("camelCase prop setter with null removes kebab-case attribute", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & {
+      defaultSize: number | null;
+    };
+    div.setAttribute("default-size", "5");
+    createReactiveProps(div, { defaultSize: propBuilders.number() });
+    div.defaultSize = null;
+    expect(div.hasAttribute("default-size")).toBe(false);
+  });
 });
 
 describe("collectRefs", () => {
@@ -252,18 +277,18 @@ describe("createComponent", () => {
   });
 
   describe("observedAttributes", () => {
-    it("matches propsSchema keys", () => {
+    it("matches propsSchema keys as kebab-case", () => {
       const tag = uniqueTag("obs");
       const Component = createComponent(
         tag,
-        { foo: propBuilders.string(), bar: propBuilders.number() },
+        { foo: propBuilders.string(), barBaz: propBuilders.number() },
         {},
         () => {},
       );
       expect(
         (Component as unknown as typeof HTMLElement & { observedAttributes: string[] })
           .observedAttributes,
-      ).toEqual(["foo", "bar"]);
+      ).toEqual(["foo", "bar-baz"]);
     });
   });
 
@@ -274,6 +299,14 @@ describe("createComponent", () => {
       const el = new Component();
       el.setAttribute("val", "updated");
       expect(el.props.$val.get()).toBe("updated");
+    });
+
+    it("updates camelCase prop store from kebab-case attribute change", () => {
+      const tag = uniqueTag("attr-camel");
+      const Component = createComponent(tag, { defaultSize: propBuilders.number() }, {}, () => {});
+      const el = new Component();
+      el.setAttribute("default-size", "99");
+      expect(el.props.$defaultSize.get()).toBe(99);
     });
 
     it("no-ops when old === new", () => {

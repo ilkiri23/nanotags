@@ -11,7 +11,7 @@ import type {
   RefsSchema,
 } from "./types";
 import { UIComponent, type ComponentCtor, type SetupFn } from "./UIComponent";
-import { invariant } from "./utils.ts";
+import { camelToKebab, invariant } from "./utils.ts";
 
 function hasBlockingCustomElementAncestor(
   element: Element,
@@ -78,7 +78,8 @@ export function createReactiveProps<Schema extends PropsSchema>(
     const parseValue = (value: string | null) =>
       parseWithSchema(propSchema, value, `${host.tagName} component. Prop "${key}"`);
 
-    const store = atom(parseValue(host.getAttribute(key)));
+    const attrName = camelToKebab(key);
+    const store = atom(parseValue(host.getAttribute(attrName)));
     const updater = (value: string | null) => store.set(parseValue(value));
 
     (stores as Record<string, unknown>)[`$${key}`] = store;
@@ -92,9 +93,9 @@ export function createReactiveProps<Schema extends PropsSchema>(
       },
       set(value: string | null) {
         if (value === null) {
-          host.removeAttribute(key);
+          host.removeAttribute(attrName);
         } else {
-          host.setAttribute(key, String(value));
+          host.setAttribute(attrName, String(value));
         }
       },
     });
@@ -169,6 +170,10 @@ export function createComponent<
     return customElements.get(name) as ComponentCtor<Name, Props, Refs, Mixin>;
   }
 
+  const attrToPropKey: Record<string, string> = Object.fromEntries(
+    Object.keys(propsSchema).map((k) => [camelToKebab(k), k]),
+  );
+
   class Component extends UIComponent<Props, Refs> {
     static readonly elementName = name;
     #props!: ReactivePropsResult<Props>;
@@ -193,7 +198,7 @@ export function createComponent<
     }
 
     static get observedAttributes() {
-      return Object.keys(propsSchema) as (keyof Props & string)[];
+      return Object.keys(propsSchema).map(camelToKebab);
     }
 
     constructor() {
@@ -203,7 +208,8 @@ export function createComponent<
 
     attributeChangedCallback(attrName: string, oldValue: string | null, newValue: string | null) {
       if (oldValue === newValue) return;
-      const updater = this.#props.updaters[attrName as keyof Props];
+      const propKey = attrToPropKey[attrName] as keyof Props | undefined;
+      const updater = propKey ? this.#props.updaters[propKey] : undefined;
       invariant(
         updater,
         `${this.constructor.name} component. No prop updater found for attribute "${attrName}"`,
