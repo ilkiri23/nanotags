@@ -133,6 +133,32 @@ This also works with custom element tag names — if you [augment `HTMLElementTa
 r.one("x-child"); // typed as InstanceType<typeof XChild>, validated at runtime
 ```
 
+### Typing refs to custom elements
+
+When referencing custom elements that aren't in `HTMLElementTagNameMap`, you have two additional options:
+
+**Direct Element generic** — pass an arbitrary Element subtype without any augmentation:
+
+```typescript
+.withRefs((r) => ({
+  panes: r.many<HTMLElement>(),
+  editor: r.one<HTMLElement & { getValue(): string }>(),
+}))
+```
+
+No runtime tag validation — only type narrowing. Works with any `Element` subtype.
+
+**Array of tags** — pass multiple tag names for a union type (requires `HTMLElementTagNameMap` augmentation for custom tags):
+
+```typescript
+.withRefs((r) => ({
+  trigger: r.one(["button", "a"]),  // HTMLButtonElement | HTMLAnchorElement
+  items:   r.many(["li", "dt"]),    // (HTMLLIElement | HTMLDListElement)[]
+}))
+```
+
+No runtime tag validation for arrays — type inferred via `HTMLElementTagNameMap` union.
+
 Both builders throw if refs can't be resolved:
 
 - `r.one()` — throws if the element is missing

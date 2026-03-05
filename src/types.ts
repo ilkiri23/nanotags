@@ -47,16 +47,17 @@ export type RefsSchema = Record<string, SingleRefMarker | ListRefMarker>;
 
 // HTMLElementTagNameMap[Tag] is resolved lazily here at usage time, not in the marker types.
 // When __tag is absent (untyped ref), falls back to Element / Element[].
-export type InferRef<M> = M extends {
-  __tag: infer Tag extends keyof HTMLElementTagNameMap;
-  __list: true;
-}
-  ? HTMLElementTagNameMap[Tag][]
-  : M extends { __list: true }
-    ? Element[]
-    : M extends { __tag: infer Tag extends keyof HTMLElementTagNameMap }
-      ? HTMLElementTagNameMap[Tag]
-      : Element;
+export type InferRef<M> = M extends { __el: infer El; __list: true }
+  ? El[]
+  : M extends { __el: infer El }
+    ? El
+    : M extends { __tag: infer Tag extends keyof HTMLElementTagNameMap; __list: true }
+      ? HTMLElementTagNameMap[Tag][]
+      : M extends { __list: true }
+        ? Element[]
+        : M extends { __tag: infer Tag extends keyof HTMLElementTagNameMap }
+          ? HTMLElementTagNameMap[Tag]
+          : Element;
 
 export type InferRefs<Schema extends RefsSchema> = {
   [Key in keyof Schema]: InferRef<Schema[Key]>;
