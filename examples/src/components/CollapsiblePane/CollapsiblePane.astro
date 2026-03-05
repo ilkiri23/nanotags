@@ -1,0 +1,30 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import styles from "./styles.module.css";
+
+type Props = HTMLAttributes<'div'> & {
+  expanded?: boolean;
+  expandedSize?: number;
+  max?: number;
+};
+
+const { class: className, expanded = false, expandedSize, max, ...rest } = Astro.props;
+---
+
+<x-collapsible-pane
+  class:list={[styles.pane, className]}
+  expanded={String(expanded)}
+  expanded-size={expandedSize}
+  max={max}
+  {...rest}
+>
+  <header data-ref="header" class={styles.header}>
+    <slot name="header" />
+  </header>
+  <div data-ref="body" class={styles.body}>
+    <slot />
+  </div>
+</x-collapsible-pane>
+<script>
+  import "./components";
+</script>

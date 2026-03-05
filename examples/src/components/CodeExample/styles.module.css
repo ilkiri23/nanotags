@@ -1,0 +1,11 @@
+.panes {
+  height: 100%;
+  width: 100%;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-surface-1);
+}
