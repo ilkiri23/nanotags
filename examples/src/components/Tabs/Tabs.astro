@@ -1,0 +1,17 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import styles from "./styles.module.css";
+
+type Props = HTMLAttributes<"div"> & {
+  active: string;
+};
+
+const { active, class: className, ...rest } = Astro.props;
+---
+
+<x-tabs class:list={[styles.tabs, className]} role="tablist" active={active} {...rest}>
+  <slot />
+</x-tabs>
+<script>
+  import "./components";
+</script>
