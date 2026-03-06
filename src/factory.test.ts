@@ -190,16 +190,6 @@ describe("collectRefs", () => {
       expect(() => collectRefs(host, { nested: refBuilders.one() })).toThrow(/Missing/);
     });
 
-    it("includes ref when ancestor in includeComponents", () => {
-      const tag = uniqueTag("allowed");
-      customElements.define(tag, class extends HTMLElement {});
-      const host = createHostWith(`<${tag}><span data-ref="nested">inside</span></${tag}>`);
-      const refs = collectRefs(host, {
-        nested: refBuilders.one({ includeComponents: [tag] }),
-      });
-      expect(refs.nested.tagName).toBe("SPAN");
-    });
-
     it("does not skip when custom element IS the host", () => {
       const tag = uniqueTag("host-ce");
       class CE extends HTMLElement {}
@@ -209,21 +199,7 @@ describe("collectRefs", () => {
       expect(refs.child.tagName).toBe("SPAN");
     });
 
-    it("includes ref when ancestors in includeComponents", () => {
-      const outer = uniqueTag("outer");
-      const inner = uniqueTag("deep");
-      customElements.define(outer, class extends HTMLElement {});
-      customElements.define(inner, class extends HTMLElement {});
-      const host = createHostWith(
-        `<${outer}><${inner}><span data-ref="deep">x</span></${inner}></${outer}>`,
-      );
-      const refs = collectRefs(host, {
-        deep: refBuilders.one({ includeComponents: [outer, inner] }),
-      });
-      expect(refs.deep.tagName).toBe("SPAN");
-    });
-
-    it("multiple nesting levels are ignored", () => {
+    it("multiple nesting levels are blocked for implicit refs", () => {
       const outer = uniqueTag("outer");
       const inner = uniqueTag("deep");
       customElements.define(outer, class extends HTMLElement {});
@@ -232,6 +208,93 @@ describe("collectRefs", () => {
         `<${outer}><${inner}><span data-ref="deep">x</span></${inner}></${outer}>`,
       );
       expect(() => collectRefs(host, { deep: refBuilders.one() })).toThrow(/Missing/);
+    });
+  });
+
+  describe("owned refs (prefixed data-ref)", () => {
+    it("finds prefixed ref through blocking custom element", () => {
+      const hostTag = uniqueTag("owner");
+      const inner = uniqueTag("wrap");
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        hostTag,
+        `<${inner}><span data-ref="${hostTag}:nested">inside</span></${inner}>`,
+      );
+      const refs = collectRefs(host, { nested: refBuilders.one() });
+      expect(refs.nested.tagName).toBe("SPAN");
+    });
+
+    it("finds prefixed ref through multiple nesting levels", () => {
+      const hostTag = uniqueTag("owner");
+      const outer = uniqueTag("outer");
+      const inner = uniqueTag("inner");
+      customElements.define(outer, class extends HTMLElement {});
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        hostTag,
+        `<${outer}><${inner}><span data-ref="${hostTag}:deep">x</span></${inner}></${outer}>`,
+      );
+      const refs = collectRefs(host, { deep: refBuilders.one() });
+      expect(refs.deep.tagName).toBe("SPAN");
+    });
+
+    it("does not collect ref prefixed with wrong component name", () => {
+      const hostTag = uniqueTag("owner");
+      const otherTag = uniqueTag("other");
+      const inner = uniqueTag("wrap");
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        hostTag,
+        `<${inner}><span data-ref="${otherTag}:nested">inside</span></${inner}>`,
+      );
+      expect(() => collectRefs(host, { nested: refBuilders.one() })).toThrow(/Missing/);
+    });
+
+    it("works with many() refs", () => {
+      const hostTag = uniqueTag("owner");
+      const inner = uniqueTag("wrap");
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        hostTag,
+        `<${inner}><i data-ref="${hostTag}:items">1</i><i data-ref="${hostTag}:items">2</i></${inner}>`,
+      );
+      const refs = collectRefs(host, { items: refBuilders.many() });
+      expect(refs.items).toHaveLength(2);
+    });
+
+    it("deduplicates when element matches both shallow and deep selectors", () => {
+      const hostTag = uniqueTag("owner");
+      const host = createHostWith(
+        hostTag,
+        `<span data-ref="title">shallow</span><span data-ref="${hostTag}:title">deep</span>`,
+      );
+      const refs = collectRefs(host, { title: refBuilders.many() });
+      expect(refs.title).toHaveLength(2);
+    });
+
+    it("deduplicates same element matching both selectors", () => {
+      const hostTag = uniqueTag("owner");
+      // Element has both data-ref="title" and would need both selectors
+      // but since data-ref can only have one value, this tests the set dedup
+      const host = createHostWith(hostTag, `<span data-ref="title">only</span>`);
+      const refs = collectRefs(host, { title: refBuilders.many() });
+      expect(refs.title).toHaveLength(1);
+    });
+
+    it("mixes shallow and owned refs in same component", () => {
+      const hostTag = uniqueTag("owner");
+      const inner = uniqueTag("wrap");
+      customElements.define(inner, class extends HTMLElement {});
+      const host = createHostWith(
+        hostTag,
+        `<span data-ref="shallow">ok</span><${inner}><span data-ref="${hostTag}:deep">ok</span></${inner}>`,
+      );
+      const refs = collectRefs(host, {
+        shallow: refBuilders.one(),
+        deep: refBuilders.one(),
+      });
+      expect(refs.shallow.textContent).toBe("ok");
+      expect(refs.deep.textContent).toBe("ok");
     });
   });
 });

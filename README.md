@@ -164,14 +164,57 @@ Both builders throw if refs can't be resolved:
 - `r.one()` — throws if the element is missing
 - `r.many()` — throws if no elements found
 
-### Cross-component refs
+### Ref scoping and ownership
 
-Refs inside nested custom elements are ignored by default, keeping components independent. But when a component is composed of sub-components (e.g. `x-tabs` + `x-tab`), the parent needs to reach into its children. Whitelist them with `includeComponents`:
+By default, refs are **scoped** — elements inside nested custom elements are skipped. This keeps components independent: an `x-tabs` component won't accidentally collect refs from a deeply nested `x-dialog`.
+
+```html
+<x-parent>
+  <span data-ref="title">found ✓</span>
+  <x-child>
+    <span data-ref="subtitle">skipped ✗</span>
+  </x-child>
+</x-parent>
+```
+
+This works well for flat components, but breaks with **slot-based composition**. Frameworks like Astro compose UI by passing components into structural wrappers (split panes, collapsible sections) as slot content. These wrappers might be custom elements too, so they block ref resolution — even though the slotted content conceptually belongs to the parent:
+
+```astro
+<!-- x-code-example owns all these refs, but ResizablePanes blocks them -->
+<x-code-example>
+  <ResizablePanes>           <!-- ← custom element boundary blocks refs below -->
+    <ResizablePane>
+      <button data-ref="tabs">...</button>
+      <CodeEditor data-ref="editor" />
+    </ResizablePane>
+  </ResizablePanes>
+</x-code-example>
+```
+
+**Owned refs** solve this. Prefix `data-ref` with the owning component's tag name — the ref is collected deeply, ignoring any custom element boundaries:
+
+```astro
+<x-code-example>
+  <ResizablePanes>
+    <ResizablePane>
+      <button data-ref="x-code-example:tabs">...</button>
+      <CodeEditor data-ref="x-code-example:editor" />
+    </ResizablePane>
+  </ResizablePanes>
+</x-code-example>
+```
+
+The JS definition stays exactly the same — no options needed:
 
 ```typescript
-// x-tabs needs to find <button> refs rendered by each <x-tab>
-tabs: r.many("button", { includeComponents: ["x-tab"] });
+define("x-code-example")
+  .withRefs((r) => ({
+    tabs: r.many("button"),
+    editor: r.one("x-code-editor"),
+  }))
 ```
+
+Each ref automatically checks both selectors: `[data-ref="name"]` (shallow, with blocking) and `[data-ref="x-component:name"]` (deep, no blocking). You can freely mix owned and unowned refs in the same component.
 
 ## Setup Context
 

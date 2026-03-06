@@ -21,7 +21,6 @@ export type ComponentProps<Schema extends PropsSchema> = {
 
 export type RefOptions = {
   readonly selector?: string;
-  readonly includeComponents?: readonly string[];
 };
 
 // Store __tag (tag name literal) instead of _type (element type).

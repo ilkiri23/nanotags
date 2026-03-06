@@ -13,18 +13,17 @@ import type {
 import { UIComponent, type ComponentCtor, type SetupFn } from "./UIComponent";
 import { camelToKebab, invariant } from "./utils.ts";
 
-function hasBlockingCustomElementAncestor(
-  element: Element,
-  host: HTMLElement,
-  allowedTags?: readonly string[],
-): boolean {
-  const allowed = allowedTags?.map((t) => t.toUpperCase());
+function belongsTo(element: Element, host: HTMLElement): boolean {
   let ancestor = element.parentElement;
   while (ancestor && ancestor !== host) {
-    if (ancestor.tagName.includes("-") && !allowed?.includes(ancestor.tagName)) return true;
+    if (ancestor.tagName.includes("-")) return false;
     ancestor = ancestor.parentElement;
   }
-  return false;
+  return true;
+}
+
+function refSelector(ref: string, hostTag?: string): string {
+  return `[data-ref="${hostTag ? `${hostTag}:` : ""}${ref}"]`;
 }
 
 function isDangerousPrototypeProp(host: HTMLElement, key: string): boolean {
@@ -110,35 +109,36 @@ export function collectRefs<Refs extends RefsSchema>(
 ): InferRefs<Refs> {
   const result = {} as InferRefs<Refs>;
   const missingSingleRefs: string[] = [];
+  const hostTag = host.tagName.toLowerCase();
 
   for (const key of Object.keys(schema) as (keyof Refs & string)[]) {
     const entry = schema[key];
     invariant(entry, `${host.tagName} component. No schema found for ref "${key}"`);
     const isListRef = "__list" in entry && entry.__list === true;
-    const selector = entry.__options?.selector ?? `[data-ref="${key}"]`;
+    const sel = entry.__options?.selector ?? refSelector(key);
+    const ownedSel = refSelector(key, hostTag);
+    const all = host.querySelectorAll(`${sel},${ownedSel}`);
+    const shallow: Element[] = [];
+    all.forEach((el) => {
+      if (el.matches(ownedSel) || belongsTo(el, host)) shallow.push(el);
+    });
 
     if (isListRef) {
-      const elements = Array.from(host.querySelectorAll(selector)).filter(
-        (el) => !hasBlockingCustomElementAncestor(el, host, entry.__options?.includeComponents),
-      );
       invariant(
-        elements.length > 0,
+        shallow.length > 0,
         `${host.tagName} component. Missing elements for list ref "${key}"`,
       );
-      result[key] = elements.map((el) =>
+      result[key] = shallow.map((el) =>
         parseWithSchema(entry.schema, el, `${host.tagName} component. List ref "${key}"`),
       ) as InferRefs<Refs>[typeof key];
     } else {
-      const refElement = Array.from(host.querySelectorAll(selector)).find(
-        (el) => !hasBlockingCustomElementAncestor(el, host, entry.__options?.includeComponents),
-      );
-      if (!refElement) {
+      if (!shallow[0]) {
         missingSingleRefs.push(key);
         continue;
       }
       result[key] = parseWithSchema(
         entry.schema,
-        refElement,
+        shallow[0],
         `${host.tagName} component. Ref "${key}"`,
       ) as InferRefs<Refs>[typeof key];
     }
