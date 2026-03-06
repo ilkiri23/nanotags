@@ -221,10 +221,11 @@ export function createComponent<
       const result = setupFn(this);
       if (result) {
         const proto = Object.getPrototypeOf(this);
-        for (const key of Object.keys(result)) {
+        const descriptors = Object.getOwnPropertyDescriptors(result);
+        for (const key of Object.keys(descriptors)) {
           invariant(!(key in proto), `reserved mixin: ${key}`);
         }
-        Object.assign(this, result);
+        Object.defineProperties(this, descriptors);
       }
     }
   }
