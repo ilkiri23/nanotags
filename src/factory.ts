@@ -1,14 +1,18 @@
 // oxlint-disable max-classes-per-file
-import { atom } from "nanostores";
+import { atom, type WritableAtom } from "nanostores";
 
 import type {
+  PropEntry,
   AnySchema,
+  AttrPropKeys,
   ComponentProps,
   Infer,
   InferRefs,
+  PropDef,
   PropsSchema,
   ReactiveProps,
   RefsSchema,
+  FullPropDef,
 } from "./types";
 import { UIComponent, type ComponentCtor, type SetupFn } from "./UIComponent";
 import { camelToKebab, invariant } from "./utils.ts";
@@ -38,6 +42,19 @@ function isDangerousPrototypeProp(host: HTMLElement, key: string): boolean {
   return false;
 }
 
+export function isPropDef(entry: PropEntry): entry is PropDef {
+  return !("~standard" in entry);
+}
+
+const defaultDef = {
+  sync: true,
+  get: (host: HTMLElement, key: string) => host.getAttribute(camelToKebab(key)),
+};
+function normalizeProp(entry: PropEntry): FullPropDef {
+  if (isPropDef(entry)) return { ...defaultDef, ...entry };
+  return { ...defaultDef, schema: entry };
+}
+
 export function parseWithSchema<S extends AnySchema>(
   schema: S,
   value: unknown,
@@ -56,51 +73,67 @@ export function parseWithSchema<S extends AnySchema>(
 }
 
 type PropUpdaters<Schema extends PropsSchema> = {
-  [Key in keyof Schema]: (value: string | null) => void;
+  [Key in AttrPropKeys<Schema>]: (value: string | null) => void;
 };
 
 type ReactivePropsResult<Schema extends PropsSchema> = {
   stores: ReactiveProps<Schema>;
   updaters: PropUpdaters<Schema>;
+  hydrateProps: (host: HTMLElement) => void;
 };
 
 export function createReactiveProps<Schema extends PropsSchema>(
   host: HTMLElement,
   schema: Schema,
 ): ReactivePropsResult<Schema> {
-  const stores = {} as ReactiveProps<Schema>;
-  const updaters = {} as PropUpdaters<Schema>;
+  const stores: Record<string, WritableAtom<any>> = {};
+  const updaters: Record<string, ((value: string | null) => void) | null> = {};
+  const keys = Object.keys(schema) as (keyof Schema & string)[];
+  const normalized = new Map(
+    keys.map((key) => {
+      const entry = schema[key];
+      invariant(entry, `${host.tagName} component. No schema found for prop "${key}"`);
+      invariant(!isDangerousPrototypeProp(host, key), `reserved prop: ${key}`);
+      return [key, normalizeProp(entry)] as const;
+    }),
+  );
 
-  for (const key of Object.keys(schema) as (keyof Schema & string)[]) {
-    const propSchema = schema[key];
-    invariant(propSchema, `${host.tagName} component. No schema found for prop "${key}"`);
-    const parseValue = (value: string | null) =>
-      parseWithSchema(propSchema, value, `${host.tagName} component. Prop "${key}"`);
-
+  normalized.forEach((def, key) => {
+    const ctx = `${host.tagName} component. Prop "${key}"`;
     const attrName = camelToKebab(key);
-    const store = atom(parseValue(host.getAttribute(attrName)));
-    const updater = (value: string | null) => store.set(parseValue(value));
+    const store = def.sync
+      ? atom(parseWithSchema(def.schema, host.getAttribute(attrName), ctx))
+      : atom<unknown>(undefined);
+    const updateFromAttr = def.sync
+      ? (v: string | null) => store.set(parseWithSchema(def.schema, v, ctx))
+      : null;
+    const updateFromProp = def.sync
+      ? function (this: HTMLElement, v: string | null) {
+          if (v === null) this.removeAttribute(attrName);
+          else this.setAttribute(attrName, String(v));
+        }
+      : (v: unknown) => store.set(v);
 
-    (stores as Record<string, unknown>)[`$${key}`] = store;
-    updaters[key] = updater;
-
-    invariant(!isDangerousPrototypeProp(host, key), `reserved prop: ${key}`);
+    stores[`$${key}`] = store;
+    updaters[key] = updateFromAttr;
     Object.defineProperty(host, key, {
       enumerable: true,
-      get() {
-        return store.get();
-      },
-      set(value: string | null) {
-        if (value === null) {
-          host.removeAttribute(attrName);
-        } else {
-          host.setAttribute(attrName, String(value));
-        }
-      },
+      get: () => store.get(),
+      set: updateFromProp,
     });
-  }
+  });
 
-  return { stores, updaters };
+  return {
+    stores: stores as ReactiveProps<Schema>,
+    updaters: updaters as PropUpdaters<Schema>,
+    hydrateProps(h: HTMLElement) {
+      for (const [key, def] of normalized) {
+        const store = (stores as Record<string, import("nanostores").WritableAtom>)[`$${key}`]!;
+        const raw = def.get ? def.get(h, key) : undefined;
+        store.set(parseWithSchema(def.schema, raw, `${h.tagName} component. Prop "${key}"`));
+      }
+    },
+  };
 }
 
 export function collectRefs<Refs extends RefsSchema>(
@@ -170,8 +203,12 @@ export function createComponent<
     return customElements.get(name) as ComponentCtor<Name, Props, Refs, Mixin>;
   }
 
+  const attrPropKeys = Object.keys(propsSchema).filter((k) => {
+    const entry = propsSchema[k];
+    return entry !== undefined && (!isPropDef(entry) || entry.sync);
+  });
   const attrToPropKey: Record<string, string> = Object.fromEntries(
-    Object.keys(propsSchema).map((k) => [camelToKebab(k), k]),
+    attrPropKeys.map((k) => [camelToKebab(k), k]),
   );
 
   class Component extends UIComponent<Props, Refs> {
@@ -184,10 +221,6 @@ export function createComponent<
 
     get refs(): InferRefs<Refs> {
       return this.withCache("refs", () => {
-        // Lazily upgrade custom-element descendants so they resolve as fully
-        // initialized instances when refs are first accessed. Placed here
-        // (not in connectedCallback) so the parent's mixin is already assigned
-        // before children connect — child setup can consume() parent methods.
         customElements.upgrade(this);
         return collectRefs(this, refsSchema);
       });
@@ -198,7 +231,7 @@ export function createComponent<
     }
 
     static get observedAttributes() {
-      return Object.keys(propsSchema).map(camelToKebab);
+      return attrPropKeys.map(camelToKebab);
     }
 
     constructor() {
@@ -208,16 +241,12 @@ export function createComponent<
 
     attributeChangedCallback(attrName: string, oldValue: string | null, newValue: string | null) {
       if (oldValue === newValue) return;
-      const propKey = attrToPropKey[attrName] as keyof Props | undefined;
-      const updater = propKey ? this.#props.updaters[propKey] : undefined;
-      invariant(
-        updater,
-        `${this.constructor.name} component. No prop updater found for attribute "${attrName}"`,
-      );
-      updater(newValue);
+      const propKey = attrToPropKey[attrName] as AttrPropKeys<Props> | undefined;
+      if (propKey) this.#props.updaters[propKey]?.(newValue);
     }
 
     connectedCallback() {
+      this.#props.hydrateProps(this);
       const result = setupFn(this);
       if (result) {
         const proto = Object.getPrototypeOf(this);

@@ -82,7 +82,9 @@ Declare validated, reactive attributes via `withProps`. Each prop becomes:
 - A nanostores `WritableAtom` at `ctx.props.$propName`
 - A typed getter/setter on the element instance
 
-Four built-in validators coerce raw attribute strings to typed values:
+Every prop is exposed as a nanostore for a uniform, lightweight API — even props that don't strictly need reactivity. This keeps the surface area consistent: subscribe when you need updates, call `store.get()` when you just need the current value once.
+
+Five built-in validators coerce raw attribute strings to typed values (plus `p.json()` for complex data — see [JSON props](#json-props)):
 
 - `p.string()` — coerces any value to string (`null` → `""`)
 - `p.number()` — parses to number (`null` → `0`, throws on non-numeric)
@@ -110,6 +112,44 @@ Each validator accepts an optional fallback value used when the attribute is abs
 ```
 
 Props use [Standard Schema](https://github.com/standard-schema/standard-schema) internally, so any compatible validator (Valibot, Zod, ArkType) works as a custom prop schema too.
+
+### JSON props
+
+For complex data that doesn't fit into a string attribute, use `p.json()`. It accepts any Standard Schema validator and an optional fallback:
+
+```typescript
+.withProps((p) => ({
+  items: p.json(v.array(v.object({ id: v.number(), name: v.string() })), []),
+  config: p.json(v.object({ theme: v.string() })),  // fallback defaults to null → T | null
+}))
+```
+
+JSON props differ from attribute-backed props:
+
+- **Not observed** — not in `observedAttributes`, no `attributeChangedCallback` re-parsing
+- **Setter writes to atom directly** — no attribute created in the DOM
+- **Hydrated once on connect** — reads from a `<script type="application/json">` tag, falls back to a kebab-case attribute
+
+```html
+<!-- preferred: script tag (no attribute bloat, no escaping) -->
+<x-list>
+  <script type="application/json" data-prop="items">
+    [
+      { "id": 1, "name": "Alice" },
+      { "id": 2, "name": "Bob" }
+    ]
+  </script>
+</x-list>
+
+<!-- also works: inline attribute (JSON string) -->
+<x-list items='[{"id":1,"name":"Alice"}]'></x-list>
+```
+
+After hydration the value can be set programmatically:
+
+```typescript
+el.items = [{ id: 3, name: "Charlie" }]; // updates atom directly, no DOM attribute
+```
 
 ## Refs
 
@@ -220,11 +260,10 @@ This works well for flat components, but breaks with **slot-based composition**.
 The JS definition stays exactly the same — no options needed:
 
 ```typescript
-define("x-code-example")
-  .withRefs((r) => ({
-    tabs: r.many("button"),
-    editor: r.one("x-code-editor"),
-  }))
+define("x-code-example").withRefs((r) => ({
+  tabs: r.many("button"),
+  editor: r.one("x-code-editor"),
+}));
 ```
 
 Each ref automatically checks both selectors: `[data-ref="name"]` (shallow, with blocking) and `[data-ref="x-component:name"]` (deep, no blocking). You can freely mix owned and unowned refs in the same component.
@@ -275,6 +314,7 @@ ctx.sync("count", $offset, {
 Two-way binds a DOM control to a nanostores atom. The store is the source of truth — the control is set from the store on bind. Works with native form controls and any custom element that exposes a `.value` property and emits `change` events.
 
 **Native controls** (auto-detected):
+
 - `input[type=checkbox]` — syncs `.checked` with a boolean atom (listens to `change`)
 - `input[type=number]` / `input[type=range]` — reads `.valueAsNumber` automatically (listens to `input`)
 - `input[type=text|email|...]` / `textarea` — syncs `.value` with a string atom (listens to `input`)
@@ -498,9 +538,9 @@ const MyEl = define("x-my-el").withProps(/* ... */).setup(/* ... */);
 
 ## Lifecycle
 
-1. **Constructor** — reactive prop stores created, getters/setters defined
-2. **connectedCallback** — descendants upgraded (`customElements.upgrade`), `setup` runs, mixin applied
-3. **attributeChangedCallback** — attribute change validated and pushed to prop store
+1. **Constructor** — reactive prop stores created, getters/setters defined (attribute-backed props read their initial value; JSON props start as `undefined`)
+2. **connectedCallback** — all props hydrated (each prop's `get` is called → parsed through schema → atom set), descendants upgraded, `setup` runs, mixin applied
+3. **attributeChangedCallback** — attribute change validated and pushed to prop store (attribute-backed props only)
 4. **disconnectedCallback** — cache cleared, all cleanups run (listeners, effects, syncs, bindings)
 
 Re-connecting a component runs `setup` again with a fresh cache and new cleanup scope.

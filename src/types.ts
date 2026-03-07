@@ -6,10 +6,28 @@ export type TypedEvent<T extends EventTarget, D = unknown> = CustomEvent<D> & {
 };
 
 export type AnySchema = StandardSchemaV1;
-export type PropsSchema = Record<string, AnySchema>;
+export type PropDef<T = unknown> = {
+  schema: StandardSchemaV1<unknown, T>;
+  get?: (host: HTMLElement, key: string) => unknown;
+  sync?: boolean;
+};
+export type FullPropDef<T = unknown> = Required<PropDef<T>>;
+export type PropEntry = AnySchema | PropDef;
+export type PropsSchema = Record<string, PropEntry>;
 
 // oxlint-disable-next-line typescript/no-explicit-any
-export type Infer<S extends AnySchema> = S extends StandardSchemaV1<any, infer O> ? O : never;
+export type Infer<S> =
+  S extends PropDef<infer T>
+    ? T
+    : // oxlint-disable-next-line typescript/no-explicit-any
+      S extends StandardSchemaV1<any, infer O>
+      ? O
+      : never;
+
+export type AttrPropKeys<S extends PropsSchema> = {
+  [K in keyof S]: S[K] extends PropDef ? (S[K]["sync"] extends true ? K : never) : K;
+}[keyof S] &
+  string;
 
 export type ReactiveProps<Schema extends PropsSchema> = {
   [Key in keyof Schema as `$${Key & string}`]: WritableAtom<Infer<Schema[Key]>>;

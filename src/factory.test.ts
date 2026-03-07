@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import * as v from "valibot";
 
 import { propBuilders, refBuilders } from "./builders";
 import { collectRefs, createComponent, createReactiveProps, parseWithSchema } from "./factory";
@@ -119,6 +120,155 @@ describe("createReactiveProps", () => {
     createReactiveProps(div, { defaultSize: propBuilders.number() });
     div.defaultSize = null;
     expect(div.hasAttribute("default-size")).toBe(false);
+  });
+});
+
+describe("createReactiveProps — json props", () => {
+  const numArraySchema = v.array(v.number());
+  const objSchema = v.object({ a: v.number() });
+
+  it("hydrates from script tag", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<script type="application/json" data-prop="items">[1,2,3]</script>';
+    const result = createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    result.hydrateProps(div);
+    expect(result.stores.$items.get()).toEqual([1, 2, 3]);
+  });
+
+  it("falls back to attribute when no script tag", () => {
+    const div = document.createElement("div");
+    div.setAttribute("items", "[4,5]");
+    const result = createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    result.hydrateProps(div);
+    expect(result.stores.$items.get()).toEqual([4, 5]);
+  });
+
+  it("uses fallback when neither script tag nor attribute exists", () => {
+    const div = document.createElement("div");
+    const result = createReactiveProps(div, {
+      items: propBuilders.json(numArraySchema, [10, 20]),
+    });
+    result.hydrateProps(div);
+    expect(result.stores.$items.get()).toEqual([10, 20]);
+  });
+
+  it("prefers script tag over attribute", () => {
+    const div = document.createElement("div");
+    div.setAttribute("items", "[1]");
+    div.innerHTML = '<script type="application/json" data-prop="items">[2]</script>';
+    const result = createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    result.hydrateProps(div);
+    expect(result.stores.$items.get()).toEqual([2]);
+  });
+
+  it("setter updates atom directly without creating attribute", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { items: number[] };
+    createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    div.items = [7, 8, 9];
+    expect(div.items).toEqual([7, 8, 9]);
+    expect(div.hasAttribute("items")).toBe(false);
+  });
+
+  it("getter reads from atom after hydration", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & {
+      config: { a: number };
+    };
+    div.innerHTML = '<script type="application/json" data-prop="config">{"a":42}</script>';
+    const result = createReactiveProps(div, {
+      config: propBuilders.json(objSchema, { a: 0 }),
+    });
+    result.hydrateProps(div);
+    expect(div.config).toEqual({ a: 42 });
+  });
+
+  it("throws on invalid JSON in script tag during hydration", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<script type="application/json" data-prop="items">not json</script>';
+    const result = createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    expect(() => result.hydrateProps(div)).toThrow();
+  });
+
+  it("throws on invalid JSON in attribute during hydration", () => {
+    const div = document.createElement("div");
+    div.setAttribute("items", "not json");
+    const result = createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    expect(() => result.hydrateProps(div)).toThrow();
+  });
+
+  it("validates parsed JSON through schema during hydration", () => {
+    const div = document.createElement("div");
+    div.innerHTML =
+      '<script type="application/json" data-prop="config">{"a":"not a number"}</script>';
+    const result = createReactiveProps(div, { config: propBuilders.json(objSchema, { a: 0 }) });
+    expect(() => result.hydrateProps(div)).toThrow(TypeError);
+  });
+
+  it("reads kebab-case attribute for camelCase json prop", () => {
+    const div = document.createElement("div");
+    div.setAttribute("my-data", '{"a":1}');
+    const result = createReactiveProps(div, {
+      myData: propBuilders.json(objSchema, { a: 0 }),
+    });
+    result.hydrateProps(div);
+    expect(result.stores.$myData.get()).toEqual({ a: 1 });
+  });
+
+  it("script tag stays in DOM after hydration", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<script type="application/json" data-prop="items">[1]</script>';
+    const result = createReactiveProps(div, { items: propBuilders.json(numArraySchema, []) });
+    result.hydrateProps(div);
+    expect(div.querySelector('script[data-prop="items"]')).not.toBeNull();
+  });
+
+  it("coexists with attribute-backed props", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & {
+      label: string;
+      items: number[];
+    };
+    div.setAttribute("label", "hello");
+    div.innerHTML = '<script type="application/json" data-prop="items">[1,2]</script>';
+    const result = createReactiveProps(div, {
+      label: propBuilders.string(),
+      items: propBuilders.json(numArraySchema, []),
+    });
+    result.hydrateProps(div);
+    expect(result.stores.$label.get()).toBe("hello");
+    expect(result.stores.$items.get()).toEqual([1, 2]);
+  });
+});
+
+describe("createComponent — json props", () => {
+  it("excludes json props from observedAttributes", () => {
+    const tag = uniqueTag("json-obs");
+    const Component = createComponent(
+      tag,
+      { label: propBuilders.string(), items: propBuilders.json(v.array(v.string()), []) },
+      {},
+      () => {},
+    );
+    expect(
+      (Component as unknown as typeof HTMLElement & { observedAttributes: string[] })
+        .observedAttributes,
+    ).toEqual(["label"]);
+  });
+
+  it("json prop accessible via props stores", () => {
+    const tag = uniqueTag("json-store");
+    const schema = v.object({ x: v.number() });
+    createComponent(tag, { data: propBuilders.json(schema, { x: 0 }) }, {}, () => {});
+    const el = mount(
+      `<${tag}><script type="application/json" data-prop="data">{"x":5}</script></${tag}>`,
+    );
+    expect((el as any).props.$data.get()).toEqual({ x: 5 });
+  });
+
+  it("json prop settable as JS property", () => {
+    const tag = uniqueTag("json-set");
+    createComponent(tag, { items: propBuilders.json(v.array(v.number()), []) }, {}, () => {});
+    const el = mount(`<${tag}></${tag}>`) as HTMLElement & { items: number[] };
+    el.items = [1, 2, 3];
+    expect((el as any).props.$items.get()).toEqual([1, 2, 3]);
   });
 });
 

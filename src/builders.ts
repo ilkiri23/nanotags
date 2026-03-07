@@ -2,7 +2,8 @@ import * as v from "valibot";
 
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { ListRefMarker, SingleRefMarker } from "./types";
+import type { PropDef, ListRefMarker, SingleRefMarker } from "./types";
+import { camelToKebab } from "./utils";
 
 function getBaseSchema<V>(fallback?: V) {
   return fallback !== undefined ? v.nullish(v.unknown(), fallback) : v.unknown();
@@ -31,6 +32,17 @@ export const propBuilders: {
       fallback?: V,
     ): StandardSchemaV1<unknown, V>;
   };
+  json: {
+    <S extends StandardSchemaV1>(
+      schema: S,
+      fallback: null,
+    ): PropDef<StandardSchemaV1.InferOutput<S> | null>;
+    <S extends StandardSchemaV1>(
+      schema: S,
+      fallback: StandardSchemaV1.InferOutput<S>,
+    ): PropDef<StandardSchemaV1.InferOutput<S>>;
+    <S extends StandardSchemaV1>(schema: S): PropDef<StandardSchemaV1.InferOutput<S> | null>;
+  };
 } = {
   string(fallback?: string | null) {
     const n = fallback === null;
@@ -40,13 +52,9 @@ export const propBuilders: {
     );
   },
   number(fallback?: number | null) {
-    if (fallback === null) {
-      return v.pipe(
-        getBaseSchema(fallback),
-        v.transform((val) => (val == null ? null : Number(val))),
-      );
-    }
-    return v.pipe(getBaseSchema(fallback), v.toNumber());
+    const parser =
+      fallback === null ? v.transform((val) => (val == null ? null : Number(val))) : v.toNumber();
+    return v.pipe(getBaseSchema(fallback), parser);
   },
   boolean(fallback?: boolean | null) {
     const n = fallback === null;
@@ -60,10 +68,22 @@ export const propBuilders: {
     options: readonly (string | number | bigint)[],
     fallback?: string | number | bigint | null,
   ) {
-    if (fallback === null) {
-      return v.pipe(getBaseSchema(fallback), v.nullable(v.picklist(options)));
-    }
-    return v.pipe(getBaseSchema(fallback), v.picklist(options));
+    const parser = fallback === null ? v.nullable(v.picklist(options)) : v.picklist(options);
+    return v.pipe(getBaseSchema(fallback), parser);
+  },
+  json(schema: StandardSchemaV1, fallback?: unknown): PropDef {
+    const fb = fallback ?? null;
+    return {
+      schema,
+      sync: false,
+      get(host: HTMLElement, propName: string) {
+        const script = host.querySelector(
+          `script[type="application/json"][data-prop="${propName}"]`,
+        );
+        const raw = script?.textContent ?? host.getAttribute(camelToKebab(propName));
+        return raw !== null ? JSON.parse(raw) : fb;
+      },
+    };
   },
 } as never;
 

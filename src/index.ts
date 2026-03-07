@@ -5,8 +5,11 @@ export type { SetupContext, SetupFn, ComponentCtor, ReservedKeys } from "./UICom
 export type {
   TypedEvent,
   AnySchema,
+  PropEntry,
+  PropDef,
   PropsSchema,
   Infer,
+  AttrPropKeys,
   ReactiveProps,
   ComponentProps,
   SingleRefMarker,

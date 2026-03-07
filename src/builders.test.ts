@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import * as v from "valibot";
 
 import { propBuilders, refBuilders } from "./builders";
 import { parseWithSchema } from "./factory";
@@ -171,6 +172,69 @@ describe("propBuilders", () => {
         expectTypeOf<Infer<typeof nullSchema>>().toEqualTypeOf<"a" | "b" | null>();
       });
     });
+  });
+});
+
+describe("propBuilders.json", () => {
+  const itemSchema = v.object({ id: v.number(), name: v.string() });
+
+  it("returns PropDef with schema, get, and sync: false", () => {
+    const marker = propBuilders.json(v.array(v.number()), [1, 2, 3]);
+    expect(marker.sync).toBe(false);
+    expect(typeof marker.get).toBe("function");
+    expect(marker.schema).toBeDefined();
+  });
+
+  it("delegates schema validation to inner schema", () => {
+    const schema = v.array(v.number());
+    const marker = propBuilders.json(schema, []);
+    expect(marker.schema["~standard"].version).toBe(1);
+    const result = marker.schema["~standard"].validate([1, 2]) as { value: unknown };
+    expect(result.value).toEqual([1, 2]);
+  });
+
+  it("validates through inner schema", () => {
+    const marker = propBuilders.json(itemSchema, { id: 0, name: "" });
+    expect(parseWithSchema(marker.schema, { id: 1, name: "test" }, "ctx")).toEqual({
+      id: 1,
+      name: "test",
+    });
+    expect(() => parseWithSchema(marker.schema, { id: "bad" }, "ctx")).toThrow(TypeError);
+  });
+
+  it("get() returns fallback when no script tag or attribute", () => {
+    const marker = propBuilders.json(v.array(v.string()));
+    const div = document.createElement("div");
+    expect(marker.get!(div, "items")).toBeNull();
+  });
+
+  it("get() reads from script tag", () => {
+    const marker = propBuilders.json(v.array(v.number()), []);
+    const div = document.createElement("div");
+    div.innerHTML = '<script type="application/json" data-prop="items">[1,2]</script>';
+    expect(marker.get!(div, "items")).toEqual([1, 2]);
+  });
+
+  it("get() falls back to kebab-case attribute", () => {
+    const marker = propBuilders.json(v.object({ a: v.number() }), { a: 0 });
+    const div = document.createElement("div");
+    div.setAttribute("my-data", '{"a":1}');
+    expect(marker.get!(div, "myData")).toEqual({ a: 1 });
+  });
+
+  it("infers output type from schema with fallback", () => {
+    const marker = propBuilders.json(itemSchema, { id: 0, name: "" });
+    expectTypeOf<Infer<typeof marker>>().toEqualTypeOf<{ id: number; name: string }>();
+  });
+
+  it("infers nullable type when no fallback", () => {
+    const marker = propBuilders.json(itemSchema);
+    expectTypeOf<Infer<typeof marker>>().toEqualTypeOf<{ id: number; name: string } | null>();
+  });
+
+  it("infers nullable type with explicit null fallback", () => {
+    const marker = propBuilders.json(itemSchema, null);
+    expectTypeOf<Infer<typeof marker>>().toEqualTypeOf<{ id: number; name: string } | null>();
   });
 });
 
