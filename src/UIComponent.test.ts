@@ -116,6 +116,7 @@ describe("lifecycle cleanup", () => {
     expectTypeOf<Ctx>().toHaveProperty("on");
     expectTypeOf<Ctx>().toHaveProperty("emit");
     expectTypeOf<Ctx>().toHaveProperty("effect");
+    expectTypeOf<Ctx>().toHaveProperty("sync");
     expectTypeOf<Ctx>().toHaveProperty("bind");
     expectTypeOf<Ctx>().toHaveProperty("withCache");
     expectTypeOf<Ctx>().toHaveProperty("onCleanup");
@@ -422,26 +423,26 @@ describe("effect", () => {
   });
 });
 
-describe("bind", () => {
+describe("sync", () => {
   it("external store → prop store", () => {
-    const tag = uniqueTag("bind");
+    const tag = uniqueTag("sync");
     const $ext = atom("hello");
     const Component = define(tag)
       .withProps((p) => ({ val: p.string() }))
       .setup((ctx) => {
-        ctx.bind("val", $ext);
+        ctx.sync("val", $ext);
       });
     const el = mount<InstanceType<typeof Component>>(`<${tag}></${tag}>`);
     expect(el.props.$val.get()).toBe("hello");
   });
 
   it("prop store → external store", () => {
-    const tag = uniqueTag("bind");
+    const tag = uniqueTag("sync");
     const $ext = atom("init");
     define(tag)
       .withProps((p) => ({ val: p.string() }))
       .setup((ctx) => {
-        ctx.bind("val", $ext);
+        ctx.sync("val", $ext);
       });
     const el = mount(`<${tag}></${tag}>`);
     el.setAttribute("val", "changed");
@@ -449,13 +450,13 @@ describe("bind", () => {
   });
 
   it("Object.is guard prevents infinite loop", () => {
-    const tag = uniqueTag("bind");
+    const tag = uniqueTag("sync");
     const $ext = atom("same");
     const spy = vi.fn();
     define(tag)
       .withProps((p) => ({ val: p.string() }))
       .setup((ctx) => {
-        ctx.bind("val", $ext);
+        ctx.sync("val", $ext);
         ctx.effect(ctx.props.$val, spy);
       });
     mount(`<${tag} val="same"></${tag}>`);
@@ -465,12 +466,12 @@ describe("bind", () => {
   });
 
   it("get/set transforms applied", () => {
-    const tag = uniqueTag("bind");
+    const tag = uniqueTag("sync");
     const $ext = atom(42);
     const Component = define(tag)
       .withProps((p) => ({ val: p.string() }))
       .setup((ctx) => {
-        ctx.bind("val", $ext, {
+        ctx.sync("val", $ext, {
           get: (n) => String(n),
           set: (s) => Number(s),
         });
@@ -481,29 +482,269 @@ describe("bind", () => {
     expect($ext.get()).toBe(100);
   });
 
-  it("throws when binding unknown prop", () => {
-    const tag = uniqueTag("bind");
+  it("throws when syncing unknown prop", () => {
+    const tag = uniqueTag("sync");
     const $ext = atom("x");
     define(tag)
       .withProps((p) => ({ val: p.string() }))
       .setup((ctx) => {
-        (ctx as any).bind("nope", $ext);
+        (ctx as any).sync("nope", $ext);
       });
     expect(() => mount(`<${tag}></${tag}>`)).toThrow(/unknown prop/);
   });
 
   it("same value: no extra propagation", () => {
-    const tag = uniqueTag("bind");
+    const tag = uniqueTag("sync");
     const $ext = atom("v");
     const extSpy = vi.fn();
     define(tag)
       .withProps((p) => ({ val: p.string() }))
       .setup((ctx) => {
-        ctx.bind("val", $ext);
+        ctx.sync("val", $ext);
       });
     mount(`<${tag} val="v"></${tag}>`);
     $ext.listen(extSpy);
     $ext.set("v");
     expect(extSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("bind", () => {
+  it("input[type=text]: control input → store", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("");
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="text" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    input.value = "hello";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect($val.get()).toBe("hello");
+  });
+
+  it("input[type=text]: store set → control.value", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("initial");
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="text" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    expect(input.value).toBe("initial");
+    $val.set("updated");
+    expect(input.value).toBe("updated");
+  });
+
+  it("input[type=number]: reads .valueAsNumber", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom(0);
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="number" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    input.value = "42";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect($val.get()).toBe(42);
+  });
+
+  it("input[type=number]: store set → control.value", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom(7);
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="number" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    expect(input.value).toBe("7");
+    $val.set(99);
+    expect(input.value).toBe("99");
+  });
+
+  it("input[type=range]: reads .valueAsNumber", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom(1);
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="range" min="1" max="50" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    input.value = "25";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect($val.get()).toBe(25);
+  });
+
+  it("input[type=range]: store set → control.value", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom(10);
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="range" min="1" max="50" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    expect(input.value).toBe("10");
+    $val.set(30);
+    expect(input.value).toBe("30");
+  });
+
+  it("input[type=checkbox]: toggle → store (boolean)", () => {
+    const tag = uniqueTag("bind");
+    const $checked = atom(false);
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $checked);
+    });
+    const el = mount(`<${tag}><input type="checkbox" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect($checked.get()).toBe(true);
+  });
+
+  it("input[type=checkbox]: store set → .checked", () => {
+    const tag = uniqueTag("bind");
+    const $checked = atom(true);
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $checked);
+    });
+    const el = mount(`<${tag}><input type="checkbox" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    expect(input.checked).toBe(true);
+    $checked.set(false);
+    expect(input.checked).toBe(false);
+  });
+
+  it("select: change → store", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("a");
+    define(tag, (ctx) => {
+      const select = ctx.getElement("select");
+      ctx.bind(select, $val);
+    });
+    const el = mount(
+      `<${tag}><select><option value="a">A</option><option value="b">B</option></select></${tag}>`,
+    );
+    const select = el.querySelector("select")!;
+    select.value = "b";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect($val.get()).toBe("b");
+  });
+
+  it("select: store set → .value", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("b");
+    define(tag, (ctx) => {
+      const select = ctx.getElement("select");
+      ctx.bind(select, $val);
+    });
+    const el = mount(
+      `<${tag}><select><option value="a">A</option><option value="b">B</option></select></${tag}>`,
+    );
+    const select = el.querySelector("select")!;
+    expect(select.value).toBe("b");
+  });
+
+  it("textarea: input → store", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("");
+    define(tag, (ctx) => {
+      const textarea = ctx.getElement("textarea");
+      ctx.bind(textarea, $val);
+    });
+    const el = mount(`<${tag}><textarea></textarea></${tag}>`);
+    const textarea = el.querySelector("textarea")!;
+    textarea.value = "hello";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    expect($val.get()).toBe("hello");
+  });
+
+  it("textarea: store set → .value", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("prefilled");
+    define(tag, (ctx) => {
+      const textarea = ctx.getElement("textarea");
+      ctx.bind(textarea, $val);
+    });
+    const el = mount(`<${tag}><textarea></textarea></${tag}>`);
+    const textarea = el.querySelector("textarea")!;
+    expect(textarea.value).toBe("prefilled");
+  });
+
+  it("initial value from store applied to control on bind", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("from-store");
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    const el = mount(`<${tag}><input type="text" value="from-html" /></${tag}>`);
+    const input = el.querySelector("input")!;
+    expect(input.value).toBe("from-store");
+  });
+
+  it("Object.is guard prevents loops", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("same");
+    const spy = vi.fn();
+    define(tag, (ctx) => {
+      const input = ctx.getElement("input");
+      ctx.bind(input, $val);
+    });
+    mount(`<${tag}><input type="text" /></${tag}>`);
+    $val.listen(spy);
+    $val.set("same");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("custom element with .value + change event", () => {
+    const controlTag = uniqueTag("ctrl");
+    define(controlTag, () => ({ value: "init" }));
+    const tag = uniqueTag("bind");
+    const $val = atom("from-store");
+    define(tag, (ctx) => {
+      const ctrl = ctx.getElement(controlTag) as HTMLElement & { value: string };
+      ctx.bind(ctrl, $val);
+    });
+    const el = mount(`<${tag}><${controlTag}></${controlTag}></${tag}>`);
+    const ctrl = el.querySelector(controlTag)! as HTMLElement & { value: string };
+    expect(ctrl.value).toBe("from-store");
+    ctrl.value = "user-input";
+    ctrl.dispatchEvent(new Event("change", { bubbles: true }));
+    expect($val.get()).toBe("user-input");
+    $val.set("programmatic");
+    expect(ctrl.value).toBe("programmatic");
+  });
+
+  it("throws when element has no .value property", () => {
+    const tag = uniqueTag("bind");
+    const $val = atom("");
+    define(tag, (ctx) => {
+      ctx.bind(ctx.host as any, $val);
+    });
+    expect(() => mount(`<${tag}></${tag}>`)).toThrow(/has no .value property/);
+  });
+
+  it.skipIf(true)("rejects custom element without .value at type level", () => {
+    // oxlint-disable-next-line typescript-eslint/no-empty-object-type
+    const ctx = {} as SetupContext<{}, {}>;
+    const plain = {} as HTMLDivElement;
+    // @ts-expect-error - HTMLDivElement has no .value, should not match any overload
+    ctx.bind(plain, atom(""));
+  });
+
+  it.skipIf(true)("rejects store type mismatch for custom element at type level", () => {
+    // oxlint-disable-next-line typescript-eslint/no-empty-object-type
+    const ctx = {} as SetupContext<{}, {}>;
+    const ctrl = {} as HTMLElement & { value: string };
+    // @ts-expect-error - WritableAtom<number> doesn't match { value: string }
+    ctx.bind(ctrl, atom(42));
   });
 });

@@ -203,11 +203,11 @@ export abstract class UIComponent<
   }
 
   /**
-   * Two-way binds an external `store` to a component prop.
+   * Two-way syncs an external `store` with a component prop.
    * Changes to `store` update the prop; changes to the prop update `store`.
    * Use `options.get` / `options.set` to transform values across the boundary.
    */
-  bind<Prop extends keyof Props & string, Value>(
+  sync<Prop extends keyof Props & string, Value>(
     prop: Prop,
     store: WritableAtom<Value>,
     options?: {
@@ -224,6 +224,50 @@ export abstract class UIComponent<
     this.effect(propStore, (value) => {
       const next = options?.set ? options.set(value) : (value as unknown as Value);
       if (!Object.is(store.get(), next)) store.set(next);
+    });
+  }
+
+  /**
+   * Two-way binds a DOM control to a nanostores atom.
+   * Store is the source of truth — control is set from the store on bind.
+   *
+   * Native controls: auto-detects checkbox (`.checked`, `change`), number/range (`.valueAsNumber`, `input`),
+   * text/textarea (`.value`, `input`), select (`.value`, `change`).
+   *
+   * Custom elements: any element with a `.value` property and `change` event works out of the box.
+   */
+  bind(
+    control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+    store: WritableAtom<any>,
+  ): void;
+  bind<V>(control: HTMLElement & { value: NoInfer<V> }, store: WritableAtom<V>): void;
+  bind(control: HTMLElement, store: WritableAtom<unknown>): void {
+    const inp = control instanceof HTMLInputElement ? control : undefined;
+    const isCheckbox = inp?.type === "checkbox";
+    const isNumber = inp?.type === "number" || inp?.type === "range";
+    const isNative =
+      inp !== undefined ||
+      control instanceof HTMLSelectElement ||
+      control instanceof HTMLTextAreaElement;
+    if (!isNative) {
+      invariant("value" in control, `bind: ${control.tagName} has no .value property`);
+    }
+    const isTextLike = (inp !== undefined && !isCheckbox) || control instanceof HTMLTextAreaElement;
+    const event = isTextLike ? "input" : "change";
+    const ctrl = control as HTMLElement & { value: unknown };
+    const get = () => (isCheckbox ? inp!.checked : isNumber ? inp!.valueAsNumber : ctrl.value);
+    const set = (v: unknown) => {
+      if (isCheckbox) inp!.checked = v as boolean;
+      else ctrl.value = v;
+    };
+
+    set(store.get());
+    this.on(control, event, () => {
+      const next = get();
+      if (!Object.is(store.get(), next)) store.set(next);
+    });
+    this.effect(store, (value) => {
+      if (!Object.is(get(), value)) set(value);
     });
   }
 }

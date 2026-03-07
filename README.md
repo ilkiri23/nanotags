@@ -4,7 +4,7 @@
 [![Bundle size](https://img.shields.io/badge/Bundle_size-from_2906_B-brightgreen)](https://github.com/psdcoder/nano-wc/blob/main/package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Thin, Web Components wrapper with [nanostores](https://github.com/nanostores/nanostores) reactivity. No Shadow DOM — your markup stays in the regular DOM, styled with normal CSS. Typesafe fluent builder, props/refs, automatic cleanup, and two-way store binding — all under 3 KB.
+Thin, Web Components wrapper with [nanostores](https://github.com/nanostores/nanostores) reactivity. No Shadow DOM — your markup stays in the regular DOM, styled with normal CSS. Typesafe fluent builder, props/refs, automatic cleanup, store sync, and DOM binding — all under 3 KB.
 
 Shines with statically rendered markup — pair it with [Astro](https://astro.build/), server-rendered HTML, or any static-first setup to hydrate lightweight interactive islands.
 
@@ -255,19 +255,42 @@ ctx.effect([storeA, storeB], (a, b) => {
 });
 ```
 
-#### `bind(prop, store, options?)`
+#### `sync(prop, store, options?)`
 
 Two-way sync between an external store and a component prop. Changes propagate in both directions with `Object.is` equality guard to prevent loops.
 
 ```typescript
 const $name = atom("initial");
-ctx.bind("title", $name);
+ctx.sync("title", $name);
 
 // With transforms across the boundary
-ctx.bind("count", $offset, {
+ctx.sync("count", $offset, {
   get: (offset) => offset * 2, // store → prop
   set: (count) => count / 2, // prop → store
 });
+```
+
+#### `bind(control, store)`
+
+Two-way binds a DOM control to a nanostores atom. The store is the source of truth — the control is set from the store on bind. Works with native form controls and any custom element that exposes a `.value` property and emits `change` events.
+
+**Native controls** (auto-detected):
+- `input[type=checkbox]` — syncs `.checked` with a boolean atom (listens to `change`)
+- `input[type=number]` / `input[type=range]` — reads `.valueAsNumber` automatically (listens to `input`)
+- `input[type=text|email|...]` / `textarea` — syncs `.value` with a string atom (listens to `input`)
+- `select` — syncs `.value` with a string atom (listens to `change`)
+
+**Custom elements** — any element with a `.value` property works. Default event is `change`:
+
+```typescript
+const $name = atom("Ada");
+ctx.bind(ctx.refs.name, $name);
+
+const $agreed = atom(false);
+ctx.bind(ctx.refs.agree, $agreed);
+
+// Custom element with .value + change event
+ctx.bind(ctx.refs.colorPicker, $color);
 ```
 
 ### Events
@@ -478,7 +501,7 @@ const MyEl = define("x-my-el").withProps(/* ... */).setup(/* ... */);
 1. **Constructor** — reactive prop stores created, getters/setters defined
 2. **connectedCallback** — descendants upgraded (`customElements.upgrade`), `setup` runs, mixin applied
 3. **attributeChangedCallback** — attribute change validated and pushed to prop store
-4. **disconnectedCallback** — cache cleared, all cleanups run (listeners, effects, bindings)
+4. **disconnectedCallback** — cache cleared, all cleanups run (listeners, effects, syncs, bindings)
 
 Re-connecting a component runs `setup` again with a fresh cache and new cleanup scope.
 

@@ -3,17 +3,23 @@
   "version": "0.9.0",
   "description": "Tiny Web Components wrapper with nanostores reactivity. No Shadow DOM, typesafe builder, props/refs, automatic cleanup — all under 3 KB.",
   "keywords": [
-    "web-components",
+    "astro",
     "custom-elements",
+    "lightweight",
     "nanostores",
     "reactive",
-    "lightweight",
     "typescript",
-    "astro"
+    "web-components"
   ],
   "license": "MIT",
   "author": "Pavel Grinchenko <psdcoder@gmail.com>",
   "repository": "psd-coder/nano-wc",
+  "files": [
+    "dist/*",
+    "package.json",
+    "README.md",
+    "LICENSE.md"
+  ],
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -26,12 +32,6 @@
       "import": "./dist/render.mjs"
     }
   },
-  "files": [
-    "dist/*",
-    "package.json",
-    "README.md",
-    "LICENSE.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run",
@@ -48,13 +48,9 @@
     "prepare": "simple-git-hooks",
     "bump": "./scripts/bump.sh"
   },
-  "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017",
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
     "valibot": "^1.2.0"
-  },
-  "peerDependencies": {
-    "nanostores": "^1.1.1"
   },
   "devDependencies": {
     "@size-limit/file": "^12.0.0",
@@ -70,23 +66,27 @@
     "tsdown": "0.21.0-beta.2",
     "vitest": "^4.0.18"
   },
+  "peerDependencies": {
+    "nanostores": "^1.1.1"
+  },
   "simple-git-hooks": {
     "pre-commit": "npx nano-staged"
+  },
+  "nano-staged": {
+    "*.{ts,tsx}": [
+      "oxlint",
+      "oxfmt"
+    ]
   },
   "size-limit": [
     {
       "path": "dist/index.mjs",
-      "limit": "3058 B"
+      "limit": "3297 B"
     },
     {
       "path": "dist/render.mjs",
       "limit": "208 B"
     }
   ],
-  "nano-staged": {
-    "*.{ts,tsx}": [
-      "oxlint",
-      "oxfmt"
-    ]
-  }
+  "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017"
 }
