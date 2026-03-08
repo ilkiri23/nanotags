@@ -1,23 +1,23 @@
-export function render<T>(
+export function clone<T>(
   template: HTMLTemplateElement,
   data?: T,
   fill?: (fragment: DocumentFragment, data: T) => void,
 ): DocumentFragment {
-  const clone = template.content.cloneNode(true) as DocumentFragment;
-  if (fill && data !== undefined) fill(clone, data);
-  return clone;
+  const cloned = template.content.cloneNode(true) as DocumentFragment;
+  if (fill && data !== undefined) fill(cloned, data);
+  return cloned;
 }
 
-export function renderList<T>(
+export function cloneList<T>(
   template: HTMLTemplateElement,
   items: readonly T[],
   fill: (fragment: DocumentFragment, item: T, index: number) => void,
 ): DocumentFragment {
   const fragment = document.createDocumentFragment();
   items.forEach((item, index) => {
-    const clone = template.content.cloneNode(true) as DocumentFragment;
-    fill(clone, item, index);
-    fragment.append(clone);
+    const cloned = template.content.cloneNode(true) as DocumentFragment;
+    fill(cloned, item, index);
+    fragment.append(cloned);
   });
   return fragment;
 }

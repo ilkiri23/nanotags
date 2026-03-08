@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { define } from "./define";
-import { render, renderList } from "./render";
+import { clone, cloneList } from "./render";
 import { cleanup, mount, uniqueTag } from "../tests/utils";
 
 afterEach(() => cleanup());
 
-describe("render", () => {
+describe("clone", () => {
   it("clones template element", () => {
     const tag = uniqueTag("rnd");
     let fragment: DocumentFragment | undefined;
     define(tag, (ctx) => {
       const tpl = ctx.host.querySelector<HTMLTemplateElement>("template")!;
-      fragment = render(tpl);
+      fragment = clone(tpl);
     });
     mount(`<${tag}><template><span class="tpl">hello</span></template></${tag}>`);
     expect(fragment?.querySelector(".tpl")?.textContent).toBe("hello");
@@ -23,7 +23,7 @@ describe("render", () => {
     let fragment: DocumentFragment | undefined;
     define(tag, (ctx) => {
       const tpl = ctx.host.querySelector<HTMLTemplateElement>("template")!;
-      fragment = render(tpl, { title: "Hi" }, (f, d) => {
+      fragment = clone(tpl, { title: "Hi" }, (f, d) => {
         f.querySelector(".title")!.textContent = d.title;
       });
     });
@@ -36,20 +36,20 @@ describe("render", () => {
     let fragment: DocumentFragment | undefined;
     define(tag, (ctx) => {
       const tpl = ctx.host.querySelector<HTMLTemplateElement>("template")!;
-      fragment = render(tpl);
+      fragment = clone(tpl);
     });
     mount(`<${tag}><template><span>static</span></template></${tag}>`);
     expect(fragment?.querySelector("span")?.textContent).toBe("static");
   });
 });
 
-describe("renderList", () => {
+describe("cloneList", () => {
   it("one clone per item, correct order", () => {
     const tag = uniqueTag("rl");
     let fragment: DocumentFragment | undefined;
     define(tag, (ctx) => {
       const tpl = ctx.host.querySelector<HTMLTemplateElement>("template")!;
-      fragment = renderList(tpl, ["a", "b", "c"], (f, item) => {
+      fragment = cloneList(tpl, ["a", "b", "c"], (f, item) => {
         f.querySelector(".val")!.textContent = item;
       });
     });
@@ -66,7 +66,7 @@ describe("renderList", () => {
     const indices: number[] = [];
     define(tag, (ctx) => {
       const tpl = ctx.host.querySelector<HTMLTemplateElement>("template")!;
-      renderList(tpl, ["x", "y"], (_f, _item, i) => indices.push(i));
+      cloneList(tpl, ["x", "y"], (_f, _item, i) => indices.push(i));
     });
     mount(`<${tag}><template><span></span></template></${tag}>`);
     expect(indices).toEqual([0, 1]);
@@ -77,7 +77,7 @@ describe("renderList", () => {
     let fragment: DocumentFragment | undefined;
     define(tag, (ctx) => {
       const tpl = ctx.host.querySelector<HTMLTemplateElement>("template")!;
-      fragment = renderList(tpl, [], () => {});
+      fragment = cloneList(tpl, [], () => {});
     });
     mount(`<${tag}><template><span></span></template></${tag}>`);
     expect(fragment?.childNodes).toHaveLength(0);

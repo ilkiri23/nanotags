@@ -428,20 +428,20 @@ ctx.onCleanup(() => cancelAnimationFrame(raf));
 Template-cloning utilities for dynamic content. Import from the separate `nano-wc/render` entry — only pay for them when you use them.
 
 ```typescript
-import { render, renderList } from "nano-wc/render";
+import { clone, cloneList } from "nano-wc/render";
 ```
 
-### `render(template, data?, fill?)`
+### `clone(template, data?, fill?)`
 
 Clone an `HTMLTemplateElement` and optionally populate it with `data` via `fill`. Returns the `DocumentFragment`.
 
 ```typescript
-const fragment = render(ctx.refs.cardTpl, { title: "Hi" }, (tpl, d) => {
+const fragment = clone(ctx.refs.cardTpl, { title: "Hi" }, (tpl, d) => {
   tpl.querySelector(".title")!.textContent = d.title;
 });
 ```
 
-### `renderList(template, items, fill)`
+### `cloneList(template, items, fill)`
 
 Clone a template once per item, fill each clone, and return a single `DocumentFragment`. Hold a ref to the template element via `withRefs`.
 
@@ -455,13 +455,13 @@ Clone a template once per item, fill each clone, and return a single `DocumentFr
 ```
 
 ```typescript
-import { renderList } from "nano-wc/render";
+import { cloneList } from "nano-wc/render";
 
 const UserList = define("x-user-list")
   .withRefs((r) => ({ list: r.one("ul"), rowTpl: r.one("template") }))
   .setup((ctx) => {
     ctx.effect($users, (users) => {
-      const fragment = renderList(ctx.refs.rowTpl, users, (tpl, user) => {
+      const fragment = cloneList(ctx.refs.rowTpl, users, (tpl, user) => {
         ctx.getElement(tpl, ".name").textContent = user.name;
       });
       ctx.refs.list.replaceChildren(fragment);
