@@ -143,15 +143,15 @@ export abstract class UIComponent<
   /** Queries a single required element by CSS selector. Throws if not found. */
   getElement<E extends keyof HTMLElementTagNameMap>(selector: E | string): HTMLElementTagNameMap[E];
   getElement<E extends keyof HTMLElementTagNameMap>(
-    root: DocumentFragment | HTMLElement,
+    root: DocumentFragment | Element,
     selector: E | string,
   ): HTMLElementTagNameMap[E];
   getElement<E extends keyof HTMLElementTagNameMap>(
-    selectorOrRoot: E | string | DocumentFragment | HTMLElement,
+    selectorOrRoot: E | string | DocumentFragment | Element,
     maybeSelector?: E | string,
   ): HTMLElementTagNameMap[E] {
     const hasRoot = maybeSelector !== undefined;
-    const root = hasRoot ? (selectorOrRoot as DocumentFragment | HTMLElement) : this;
+    const root = hasRoot ? (selectorOrRoot as DocumentFragment | Element) : this;
     const selector = (hasRoot ? maybeSelector : selectorOrRoot) as string;
     const element = root.querySelector<HTMLElementTagNameMap[E]>(selector);
     invariant(element, `${this.constructor.name}: missing ${selector} element`);
@@ -163,15 +163,15 @@ export abstract class UIComponent<
     selector: E | string,
   ): HTMLElementTagNameMap[E][];
   getElements<E extends keyof HTMLElementTagNameMap>(
-    root: DocumentFragment | HTMLElement,
+    root: DocumentFragment | Element,
     selector: E | string,
   ): HTMLElementTagNameMap[E][];
   getElements<E extends keyof HTMLElementTagNameMap>(
-    selectorOrRoot: E | string | DocumentFragment | HTMLElement,
+    selectorOrRoot: E | string | DocumentFragment | Element,
     maybeSelector?: E | string,
   ): HTMLElementTagNameMap[E][] {
     const hasRoot = maybeSelector !== undefined;
-    const root = hasRoot ? (selectorOrRoot as DocumentFragment | HTMLElement) : this;
+    const root = hasRoot ? (selectorOrRoot as DocumentFragment | Element) : this;
     const selector = (hasRoot ? maybeSelector : selectorOrRoot) as string;
     const elements = Array.from(root.querySelectorAll<HTMLElementTagNameMap[E]>(selector));
     invariant(elements.length > 0, `${this.constructor.name}: missing ${selector} elements`);
