@@ -435,7 +435,7 @@ Keyed reconciliation utilities for dynamic content. Import from the separate `na
 import { renderList, render } from "nano-wc/render";
 ```
 
-### `renderList(container, options)`
+### `renderList(container, template, options)`
 
 Reconcile a data array against existing DOM elements by key. Creates new elements from a template, updates existing ones, removes stale ones, and reorders as needed — without destroying/recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
 
@@ -456,10 +456,9 @@ const UserList = define("x-user-list")
   .withRefs((r) => ({ list: r.one("ul"), rowTpl: r.one("template") }))
   .setup((ctx) => {
     ctx.effect($users, (users) => {
-      renderList(ctx.refs.list, {
-        template: ctx.refs.rowTpl,
+      renderList(ctx.refs.list, ctx.refs.rowTpl, {
         data: users,
-        getKey: (user) => user.id,
+        key: (user) => user.id,
         update: (el, user) => {
           ctx.getElement(el, ".name").textContent = user.name;
         },
@@ -469,32 +468,51 @@ const UserList = define("x-user-list")
 ```
 
 Options:
-- `template` — `HTMLTemplateElement` to clone for new items
 - `data` — `readonly T[]` of items to render
-- `getKey(item, index)` — returns a unique `string | number` key per item
+- `key(item, index)` — returns a unique `string | number` key per item
 - `update(el, item)` — called on create and on subsequent renders when the item reference changes
 
-Non-managed children (static headers, slots) in the container are preserved.
+Both `render` and `renderList` **own the entire container** — any child not part of the current render cycle is removed. Containers must be dedicated to rendered content.
 
-### `render(container, options)`
+### `render(container, template, options?)`
 
-Conditional single-item rendering. Pass `data` to show, `null` to remove.
+Single-item rendering with optional data. `options` is optional — omit it for static templates (loading spinners, error states, empty placeholders).
 
 ```typescript
 import { render } from "nano-wc/render";
 
-ctx.effect($user, (user) => {
-  render(ctx.refs.profile, {
-    template: ctx.refs.profileTpl,
-    data: user, // T | null
-    update: (el, u) => {
-      el.setAttribute("name", u.name);
-    },
-  });
+// Static template — no data needed
+render(container, loadingTpl);
+
+// Data-driven
+render(container, profileTpl, {
+  data: user,
+  update: (el, u) => {
+    el.setAttribute("name", u.name);
+  },
 });
 ```
 
-Internally delegates to `renderList` with a 0-or-1 element array.
+Switching templates correctly replaces the previous element:
+
+```typescript
+ctx.effect($state, (state) => {
+  if (state.loading) {
+    render(container, loadingTpl);
+  } else if (state.error) {
+    render(container, errorTpl);
+  } else {
+    render(container, itemTpl, {
+      data: state.data,
+      update: (el, d) => { /* ... */ },
+    });
+  }
+});
+```
+
+To clear: `container.replaceChildren()`.
+
+Internally delegates to `renderList` with a single-element array.
 
 ## Setup Return Value (Mixin)
 
