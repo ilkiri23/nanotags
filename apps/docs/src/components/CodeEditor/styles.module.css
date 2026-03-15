@@ -1,6 +1,14 @@
+@import url("~/styles/media.css");
+
 .host {
   display: block;
   height: 100%;
+
+  @media (--mobiles) {
+    & :global(.cm-content) {
+      font-size: 16px;
+    }
+  }
 }
 
 .host :global(.cm-editor) {
