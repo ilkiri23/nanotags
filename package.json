@@ -21,10 +21,8 @@
     "pre-push": "pnpm typecheck"
   },
   "nano-staged": {
-    "*.{js,cjs,mjs,jsx,ts,mts,tsx,json}": [
-      "oxlint --fix --fix-suggestions"
-    ],
-    "*.{css,astro,md,mdx}": [
+    "*.{js,cjs,mjs,jsx,ts,mts,tsx}": [
+      "oxlint --fix --fix-suggestions",
       "oxfmt"
     ]
   },
