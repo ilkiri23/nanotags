@@ -224,6 +224,9 @@ export abstract class UIComponent<
    * text/textarea (`.value`, `input`), select (`.value`, `change`).
    *
    * Custom elements: any element with a `.value` property and `change` event works out of the box.
+   * For nano-wc components, expose `value` as a **prop** (not a mixin) so it's available
+   * at construction time — before setup runs. This avoids ordering issues when a parent
+   * binds to a child CE whose setup hasn't executed yet (e.g. with client-side routing).
    */
   bind(
     control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,

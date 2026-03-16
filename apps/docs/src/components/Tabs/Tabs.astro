@@ -3,13 +3,13 @@ import type { HTMLAttributes } from "astro/types";
 import styles from "./styles.module.css";
 
 type Props = HTMLAttributes<"div"> & {
-  active: string;
+  value: string;
 };
 
-const { active, class: className, ...rest } = Astro.props;
+const { value, class: className, ...rest } = Astro.props;
 ---
 
-<x-tabs class:list={[styles.tabs, className]} role="tablist" active={active} {...rest}>
+<x-tabs class:list={[styles.tabs, className]} role="tablist" value={value} {...rest}>
   <button data-ref="arrowLeft" class:list={[styles.arrow, styles.arrowLeft]} tabindex="-1">‹</button>
   <slot />
   <button data-ref="arrowRight" class:list={[styles.arrow, styles.arrowRight]} tabindex="-1">›</button>
@@ -30,14 +30,14 @@ const { active, class: className, ...rest } = Astro.props;
   const SCROLL_SPEED = 150; // px per frame at 60fps
 
   const XTabs = define("x-tabs")
-    .withProps((p) => ({ active: p.string(null) }))
+    .withProps((p) => ({ value: p.string(null) }))
     .withRefs((r) => ({
       tabs: r.many("button[role=tab]"),
       arrowLeft: r.one("button"),
       arrowRight: r.one("button"),
     }))
     .setup((ctx) => {
-      const { $active } = ctx.props;
+      const { $value } = ctx.props;
       const host = ctx.host;
       let scrollRafId = 0;
 
@@ -78,7 +78,7 @@ const { active, class: className, ...rest } = Astro.props;
         onActivate(item) {
           const value = item.dataset.value;
           if (value) {
-            $active.set(value);
+            $value.set(value);
             ctx.emit("change", { value });
           }
           item.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -100,7 +100,7 @@ const { active, class: className, ...rest } = Astro.props;
         host.scrollTo({ left: host.scrollWidth, behavior: "smooth" });
       });
 
-      ctx.effect(ctx.props.$active, (value) => {
+      ctx.effect(ctx.props.$value, (value) => {
         if (!value) return;
 
         ctx.refs.tabs.forEach((t, i) => {
@@ -109,14 +109,5 @@ const { active, class: className, ...rest } = Astro.props;
           if (isActive) rover.setActive(i);
         });
       });
-
-      return {
-        get value() {
-          return $active.get();
-        },
-        set value(val: string | null) {
-          $active.set(val);
-        },
-      };
     });
 </script>

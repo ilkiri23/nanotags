@@ -654,9 +654,11 @@ describe("bind", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("custom element with .value + change event", () => {
+  it("custom element with .value prop + change event", () => {
     const controlTag = uniqueTag("ctrl");
-    define(controlTag, () => ({ value: "init" }));
+    define(controlTag)
+      .withProps((p) => ({ value: p.string("init") }))
+      .setup(() => {});
     const tag = uniqueTag("bind");
     const $val = atom("from-store");
     define(tag, (ctx) => {

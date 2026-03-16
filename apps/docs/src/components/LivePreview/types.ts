@@ -1,8 +1,10 @@
 import * as v from "valibot";
 
-export type ImportMap = {
-  imports: Record<string, string>;
-};
+export const importMapSchema = v.object({
+  imports: v.optional(v.record(v.string(), v.string())),
+});
+
+export type ImportMap = v.InferOutput<typeof importMapSchema>;
 
 export const fileEntrySchema = v.object({
   name: v.string(),
@@ -11,9 +13,9 @@ export const fileEntrySchema = v.object({
   content: v.string(),
 });
 
-export type FileEntryType = "html" | "javascript" | "css" | "importmap";
-export type FileEntryLang = "html" | "javascript" | "css";
 export type FileEntry = v.InferOutput<typeof fileEntrySchema>;
+export type FileEntryType = FileEntry["type"];
+export type FileEntryLang = FileEntry["lang"];
 
 export const logLevelSchema = v.picklist(["log", "warn", "error", "info", "debug"]);
 export const logMessageSchema = v.object({

@@ -26,10 +26,10 @@ invariant(firstFile, "No files provided");
   <script type="application/json" data-prop="files" set:html={JSON.stringify(files).replaceAll("</", "<\\/")} is:inline />
   <ResizablePanes direction="horizontal" class={styles.panes}>
     <ResizablePane class:list={[styles.pane, styles.codePane]}>
-      <Tabs active={firstFile.name} data-ref="x-code-example:tabs" class={styles.fileTabs}>
+      <Tabs value={firstFile.name} data-ref="x-code-example:tabs" class={styles.fileTabs}>
         {files.map((f) => <Tab value={f.name} class={styles.tab}>{f.name}</Tab>)}
       </Tabs>
-      <CodeEditor data-ref="x-code-example:editor" lang={firstFile.type}>{firstFile.content}</CodeEditor>
+      <CodeEditor data-ref="x-code-example:editor" lang={firstFile.type} />
     </ResizablePane>
     <ResizablePane class:list={[styles.pane, styles.previewPane]}>
       <LivePreview data-ref="x-code-example:preview" />
@@ -138,7 +138,9 @@ invariant(firstFile, "No files provided");
         ctx.refs.editor.value = entry.content;
         ctx.refs.editor.setAttribute("lang", entry.lang);
       });
-      ctx.effect($debouncedFiles, (files) => ctx.refs.preview.render({ files, importOverrides }));
+      ctx.effect($debouncedFiles, (files) => {
+        ctx.refs.preview.value = { files, importOverrides }
+    });
       ctx.effect($logs, (logs) => {
         const scroll = ctx.refs.logsContainer;
         const isAtBottom = scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 5;
