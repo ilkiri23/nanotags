@@ -5,24 +5,20 @@ import type {
   BindOptions,
   ComponentProps,
   InferRefs,
-  Prettify,
   PropsSchema,
   ReactiveProps,
   WritableStore,
   RefsSchema,
   ReadableStore,
-} from "./types";
+} from "./types.ts";
 
-export type ReservedKeys = keyof UIComponent<PropsSchema, RefsSchema>;
+export type ReservedKeys = keyof HTMLElement | "props" | "refs";
 
 type StoreValues<Stores extends ReadableStore<any>[]> = {
   [Index in keyof Stores]: StoreValue<Stores[Index]>;
 };
 
-export type SetupContext<Props extends PropsSchema, Refs extends RefsSchema> = Omit<
-  UIComponent<Props, Refs>,
-  keyof HTMLElement
->;
+export type SetupContext<Props extends PropsSchema, Refs extends RefsSchema> = Context<Props, Refs>;
 
 export type SetupFn<Props extends PropsSchema, Refs extends RefsSchema> = (
   ctx: SetupContext<Props, Refs>,
@@ -34,36 +30,30 @@ export type ComponentCtor<
   Refs extends RefsSchema,
   // oxlint-disable-next-line typescript-eslint/no-empty-object-type
   Mixin = {},
-> = (new () => UIComponent<Props, Refs> & ComponentProps<Props> & Mixin) & {
+> = (new () => HTMLElement &
+  ComponentProps<Props> & { props: ReactiveProps<Props>; refs: InferRefs<Refs> } & Mixin) & {
   readonly elementName: Name;
 };
 
-export abstract class UIComponent<
-  Props extends PropsSchema,
-  Refs extends RefsSchema,
-> extends HTMLElement {
-  #cleanups: VoidFunction[] = [];
+export class Context<Props extends PropsSchema, Refs extends RefsSchema> {
+  host: HTMLElement & { props: ReactiveProps<Props>; refs: InferRefs<Refs> };
+  /** Registers a cleanup function to be called when the component is disconnected. */
+  onCleanup: (callback: VoidFunction) => void;
 
-  abstract get refs(): Prettify<InferRefs<Refs>>;
-  abstract get props(): Prettify<ReactiveProps<Props>>;
-  abstract get host(): HTMLElement & ComponentProps<Props>;
-
-  protected disconnectedCallback(): void {
-    let err: unknown;
-    for (const fn of this.#cleanups) {
-      try {
-        fn();
-      } catch (e) {
-        err ??= e;
-      }
-    }
-    this.#cleanups = [];
-    if (err) throw err;
+  constructor(
+    host: HTMLElement & { props: ReactiveProps<Props>; refs: InferRefs<Refs> },
+    onCleanup: (callback: VoidFunction) => void,
+  ) {
+    this.host = host;
+    this.onCleanup = onCleanup;
   }
 
-  /** Registers a cleanup function to be called when the component is disconnected. */
-  onCleanup(callback: VoidFunction): void {
-    this.#cleanups.push(callback);
+  get props(): ReactiveProps<Props> {
+    return this.host.props;
+  }
+
+  get refs(): InferRefs<Refs> {
+    return this.host.refs;
   }
 
   /**
@@ -116,8 +106,8 @@ export abstract class UIComponent<
   emit(event: Event): void;
   emit<D>(name: string, detail?: D, options?: Omit<CustomEventInit<D>, "detail">): void;
   emit(nameOrEvent: string | Event, detail?: unknown, options?: CustomEventInit): void {
-    if (nameOrEvent instanceof Event) return void this.dispatchEvent(nameOrEvent);
-    this.dispatchEvent(
+    if (nameOrEvent instanceof Event) return void this.host.dispatchEvent(nameOrEvent);
+    this.host.dispatchEvent(
       new CustomEvent(nameOrEvent, {
         bubbles: true,
         composed: true,
@@ -138,10 +128,10 @@ export abstract class UIComponent<
     maybeSelector?: E | string,
   ): HTMLElementTagNameMap[E] {
     const hasRoot = maybeSelector !== undefined;
-    const root = hasRoot ? (selectorOrRoot as DocumentFragment | Element) : this;
+    const root = hasRoot ? (selectorOrRoot as DocumentFragment | Element) : this.host;
     const selector = (hasRoot ? maybeSelector : selectorOrRoot) as string;
     const element = root.querySelector<HTMLElementTagNameMap[E]>(selector);
-    invariant(element, `${this.constructor.name}: missing ${selector} element`);
+    invariant(element, `${this.host.constructor.name}: missing ${selector} element`);
     return element;
   }
 
@@ -158,22 +148,22 @@ export abstract class UIComponent<
     maybeSelector?: E | string,
   ): HTMLElementTagNameMap[E][] {
     const hasRoot = maybeSelector !== undefined;
-    const root = hasRoot ? (selectorOrRoot as DocumentFragment | Element) : this;
+    const root = hasRoot ? (selectorOrRoot as DocumentFragment | Element) : this.host;
     const selector = (hasRoot ? maybeSelector : selectorOrRoot) as string;
     const elements = Array.from(root.querySelectorAll<HTMLElementTagNameMap[E]>(selector));
-    invariant(elements.length > 0, `${this.constructor.name}: missing ${selector} elements`);
+    invariant(elements.length > 0, `${this.host.constructor.name}: missing ${selector} elements`);
     return elements;
   }
 
   /**
    * Finds the nearest ancestor component matching `ctor.elementName` and returns it as the typed component.
-   * Throws if no matching ancestor exists. Useful for child components to consume context from parent components without explicit prop passing or global state.
+   * Throws if no matching ancestor exists.
    */
   consume<T extends HTMLElement>(ctor: (new () => T) & { elementName: string }): T {
-    const closest = this.closest(ctor.elementName) as T | null;
+    const closest = this.host.closest(ctor.elementName) as T | null;
     invariant(
       closest,
-      `${this.constructor.name} component: no ancestor found for consumed component ${ctor.elementName}`,
+      `${this.host.constructor.name} component: no ancestor found for consumed component ${ctor.elementName}`,
     );
     return closest;
   }
@@ -197,12 +187,6 @@ export abstract class UIComponent<
    *
    * No options → full auto-detect (native controls + custom `.value`/`change`), two-way.
    * Options present → `prop` defaults to auto-detected, `event` undefined = one-way.
-   *
-   * Native controls: auto-detects checkbox (`.checked`, `change`), number/range (`.valueAsNumber`, `input`),
-   * text/textarea (`.value`, `input`), select (`.value`, `change`).
-   *
-   * Custom elements: any element with a `.value` property and `change` event works out of the box.
-   * Pass `{ prop }` for one-way binding to any element property, or `{ prop, event }` for two-way.
    */
   bind(
     store: WritableStore<any>,

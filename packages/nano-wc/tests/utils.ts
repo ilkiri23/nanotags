@@ -10,7 +10,7 @@ export function mount<R extends HTMLElement = HTMLElement>(html: string): R {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = html;
   const el = wrapper.firstElementChild!;
-  document.body.appendChild(el);
+  document.body.append(el);
   return el as R;
 }
 

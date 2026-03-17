@@ -1,7 +1,6 @@
 export { define } from "./define";
-export { UIComponent } from "./UIComponent";
 
-export type { SetupContext, SetupFn, ComponentCtor, ReservedKeys } from "./UIComponent";
+export type { SetupContext, SetupFn, ComponentCtor, ReservedKeys } from "./context";
 export type {
   TypedEvent,
   AnySchema,

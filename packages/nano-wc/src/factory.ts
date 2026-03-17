@@ -5,7 +5,6 @@ import type {
   PropEntry,
   AnySchema,
   AttrPropKeys,
-  ComponentProps,
   Infer,
   InferRefs,
   PropDef,
@@ -14,7 +13,7 @@ import type {
   RefsSchema,
   FullPropDef,
 } from "./types";
-import { UIComponent, type ComponentCtor, type SetupFn } from "./UIComponent";
+import { Context, type ComponentCtor, type SetupFn } from "./context.ts";
 import { camelToKebab, invariant } from "./utils.ts";
 
 function belongsTo(element: Element, host: HTMLElement): boolean {
@@ -103,7 +102,7 @@ export function createReactiveProps<Schema extends PropsSchema>(
     const attrName = camelToKebab(key);
     const store = def.attribute
       ? atom(parseWithSchema(def.schema, host.getAttribute(attrName), ctx))
-      : atom<unknown>(undefined);
+      : atom<unknown>();
     const updateFromAttr = def.attribute
       ? (v: string | null) => store.set(parseWithSchema(def.schema, v, ctx))
       : null;
@@ -211,14 +210,11 @@ export function createComponent<
     attrPropKeys.map((k) => [camelToKebab(k), k]),
   );
 
-  class Component extends UIComponent<Props, Refs> {
+  class Component extends HTMLElement {
     static readonly elementName = name;
+    #cleanups: VoidFunction[] = [];
     #props!: ReactivePropsResult<Props>;
     #refs: InferRefs<Refs> | undefined;
-
-    get host(): HTMLElement & ComponentProps<Props> {
-      return this as HTMLElement & ComponentProps<Props>;
-    }
 
     get refs(): InferRefs<Refs> {
       if (!this.#refs) {
@@ -241,6 +237,23 @@ export function createComponent<
       this.#props = createReactiveProps(this, propsSchema);
     }
 
+    #onCleanup = (callback: VoidFunction): void => {
+      this.#cleanups.push(callback);
+    };
+
+    disconnectedCallback(): void {
+      let err: unknown;
+      for (const fn of this.#cleanups) {
+        try {
+          fn();
+        } catch (e) {
+          err ??= e;
+        }
+      }
+      this.#cleanups = [];
+      if (err) throw err;
+    }
+
     attributeChangedCallback(attrName: string, oldValue: string | null, newValue: string | null) {
       if (oldValue === newValue) return;
       const propKey = attrToPropKey[attrName] as AttrPropKeys<Props> | undefined;
@@ -250,7 +263,7 @@ export function createComponent<
     connectedCallback() {
       this.#refs = undefined;
       this.#props.hydrateProps(this);
-      const result = setupFn(this);
+      const result = setupFn(new Context<Props, Refs>(this, this.#onCleanup));
       if (result) {
         const proto = Object.getPrototypeOf(this);
         const descriptors = Object.getOwnPropertyDescriptors(result);

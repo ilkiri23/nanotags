@@ -1,5 +1,5 @@
 import type { PropsSchema, RefsSchema, StrictPropEntry } from "./types";
-import type { ComponentCtor, SetupFn, SetupContext } from "./UIComponent";
+import type { ComponentCtor, SetupFn, SetupContext } from "./context";
 import { propBuilders, refBuilders } from "./builders";
 import { createComponent } from "./factory.ts";
 

@@ -45,11 +45,11 @@ describe("createReactiveProps — reserved name guard", () => {
     );
   });
 
-  it("throws when prop name conflicts with prototype method on component", () => {
+  it("allows emit as prop name (not on Component prototype)", () => {
     const tag = uniqueTag("rp");
     const Component = createComponent(tag, {}, {}, () => {});
     const el = new Component();
-    expect(() => createReactiveProps(el, { emit: propBuilders.string() })).toThrow(/reserved/);
+    expect(() => createReactiveProps(el, { emit: propBuilders.string() })).not.toThrow();
   });
 
   it("allows configurable prototype accessor props like lang and className", () => {
@@ -551,10 +551,11 @@ describe("createComponent", () => {
       expect((el as any).greet()).toBe("hi");
     });
 
-    it("throws when mixin key conflicts with prototype", () => {
-      const tag = uniqueTag("mixin-bad");
-      createComponent(tag, {}, {}, () => ({ emit: () => {} }));
-      expect(() => mount(`<${tag}></${tag}>`)).toThrow(/reserved/);
+    it("allows mixin key 'emit' (not on prototype)", () => {
+      const tag = uniqueTag("mixin-emit");
+      createComponent(tag, {}, {}, () => ({ emit: () => "fired" }));
+      const el = mount(`<${tag}></${tag}>`);
+      expect((el as any).emit()).toBe("fired");
     });
   });
 

@@ -2,7 +2,7 @@ import { atom } from "nanostores";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { define } from "./define";
-import type { SetupContext } from "./UIComponent";
+import type { SetupContext } from "./context";
 import { cleanup, mount, uniqueTag } from "../tests/utils";
 
 afterEach(() => cleanup());
@@ -107,7 +107,7 @@ describe("lifecycle cleanup", () => {
     expect(calls).toEqual(["cleanup-0", "cleanup-1"]);
   });
 
-  it("SetupContext exposes UIComponent API and omits HTMLElement members (only on type level)", () => {
+  it("SetupContext exposes ctx API and omits HTMLElement members", () => {
     // oxlint-disable-next-line typescript-eslint/no-empty-object-type
     type Ctx = SetupContext<{}, {}>;
     expectTypeOf<Ctx>().toHaveProperty("props");
