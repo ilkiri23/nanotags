@@ -1,6 +1,6 @@
-export function invariant(condition: unknown, message: string | Error): asserts condition {
+export function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) {
-    throw message instanceof Error ? message : new Error(message);
+    throw new Error(message);
   }
 }
 
