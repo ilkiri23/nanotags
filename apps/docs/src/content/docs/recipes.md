@@ -253,6 +253,32 @@ export function attachFocusTrap(ctx: SetupContext, container: HTMLElement) {
 }
 ```
 
+## Client-side routing
+
+Client-side routers (Astro, SvelteKit, etc.) swap page content between navigations. When new components are inserted, child modules may load before parents — causing `setup` to run in the wrong order and `consume()` to fail.
+
+Use `deferSetups` / `flushSetups` from `nano-wc/defer` to batch and reorder setup calls:
+
+### Astro (View Transitions)
+
+```typescript
+import { deferSetups, flushSetups } from "nano-wc/defer";
+
+document.addEventListener("astro:before-swap", () => deferSetups());
+document.addEventListener("astro:page-load", () => flushSetups());
+```
+
+### Generic router
+
+```typescript
+import { deferSetups, flushSetups } from "nano-wc/defer";
+
+router.beforeNavigate(() => deferSetups());
+router.afterNavigate(() => flushSetups());
+```
+
+The initial page load is unaffected — no `deferSetups()` call means no queue, so components initialize immediately as usual. The `nano-wc/defer` entry point is fully standalone (~200 B) with no shared code with the core bundle.
+
 ## Typed custom events
 
 Make events type-safe across components:

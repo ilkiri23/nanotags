@@ -644,6 +644,29 @@ declare global {
 const MyEl = define("x-my-el").withProps(/* ... */).setup(/* ... */);
 ```
 
+## Client-Side Routing
+
+Client-side routers (Astro for example) swap page content between navigations. When new components are inserted, child modules may load before parents — causing `setup` to run in the wrong order and `consume()` to fail.
+
+Import `deferSetups` / `flushSetups` from the standalone `nano-wc/defer` entry point (~200 B, no shared code with core) to batch and reorder setup calls:
+
+```typescript
+import { deferSetups, flushSetups } from "nano-wc/defer";
+
+// Astro
+document.addEventListener("astro:before-swap", () => deferSetups());
+document.addEventListener("astro:page-load", () => flushSetups());
+
+// Generic router
+router.beforeNavigate(() => deferSetups());
+router.afterNavigate(() => flushSetups());
+```
+
+- **`deferSetups()`** — queues all `connectedCallback` bodies instead of running them
+- **`flushSetups()`** — sorts queued components by DOM position (parent → child), runs their setups, then deletes the queue so subsequent connections behave normally
+
+Initial page load is unaffected — no `deferSetups()` call means no queue, so components initialize immediately as usual.
+
 ## Lifecycle
 
 1. **Constructor** — reactive prop stores created, getters/setters defined (attribute-backed props read their initial value; JSON props start as `undefined`)

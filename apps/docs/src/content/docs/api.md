@@ -604,3 +604,27 @@ const MyEl = define("x-my-el").withProps(/* ... */).setup(/* ... */);
 4. **disconnectedCallback** — cache cleared, all cleanups run (listeners, effects, bindings)
 
 Re-connecting a component runs `setup` again with a fresh cache and new cleanup scope.
+
+## Setup Deferral
+
+Import from the standalone `nano-wc/defer` entry point (~200 B, no shared code with core).
+
+```typescript
+import { deferSetups, flushSetups } from "nano-wc/defer";
+```
+
+### `deferSetups()`
+
+Activates deferral mode. While active, every `connectedCallback` queues its setup instead of running it immediately. Calling `deferSetups()` multiple times before a flush is safe — the queue accumulates.
+
+### `flushSetups()`
+
+Sorts the queue by DOM position (parents before children), runs each setup for elements still connected, then deletes the queue. After flush, new connections run immediately as usual.
+
+No-op if no queue exists (i.e. `deferSetups()` was never called).
+
+### Why
+
+Client-side routers swap page content via `replaceChildren`. Component modules may load in unpredictable order — a child's `customElements.define()` can fire before its parent's. Without deferral, the child upgrades first, its `setup` runs, and `consume()` fails because the parent hasn't been set up yet.
+
+Wrapping the navigation in `deferSetups()` / `flushSetups()` guarantees parent-first setup order regardless of script loading order. See [Client-side routing](/docs/recipes/#client-side-routing) for integration examples.

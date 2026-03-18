@@ -30,6 +30,10 @@
     "./render": {
       "types": "./dist/render.d.mts",
       "import": "./dist/render.mjs"
+    },
+    "./defer": {
+      "types": "./dist/defer.d.mts",
+      "import": "./dist/defer.mjs"
     }
   },
   "scripts": {
@@ -72,11 +76,15 @@
   "size-limit": [
     {
       "path": ".size-check/index.mjs",
-      "limit": "2298 B"
+      "limit": "2351 B"
     },
     {
       "path": ".size-check/render.mjs",
       "limit": "410 B"
+    },
+    {
+      "path": ".size-check/defer.mjs",
+      "limit": "179 B"
     }
   ]
 }
