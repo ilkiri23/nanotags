@@ -57,9 +57,11 @@ export const propBuilders: {
     return v.pipe(getBaseSchema(fallback), parser);
   },
   boolean(fallback?: boolean | null) {
+    const n = fallback === null;
     return v.pipe(
       getBaseSchema(fallback),
       v.transform((s) => {
+        if (n && s === null) return null;
         if (s === "false") return false;
         return s === "" || !!s;
       }),
@@ -102,8 +104,13 @@ const TAG_RE = /^[a-z][a-z0-9-]*$/;
 function parseRefArgs(tagOrSelector?: string | readonly string[]) {
   const tag =
     typeof tagOrSelector === "string" && TAG_RE.test(tagOrSelector) ? tagOrSelector : undefined;
+  const tags = Array.isArray(tagOrSelector)
+    ? (tagOrSelector as readonly string[]).filter((t) => TAG_RE.test(t))
+    : undefined;
   const sel = typeof tagOrSelector === "string" && !tag ? tagOrSelector : undefined;
   return {
+    ...(tag && { __tag: tag }),
+    ...(tags?.length && { __tags: tags }),
     ...(sel && { __selector: sel }),
     schema: buildRefSchema(tag),
   };

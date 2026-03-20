@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Counter</title>
   <meta name="description" content="A minimal counter using nano-wc with nanostores reactivity.">
@@ -12,18 +13,19 @@
     }
   </script>
 </head>
+
 <body>
   <div data-type="html">
-    <x-counter>
+    <x-counter initial="1" step="5">
       <div>
-        <input data-ref="stepInput" type="range" min="1" max="50" value="1">
-        <span>Step: <span data-ref="step">1</span></span>
-      <div>
-      <div>
-        <button data-ref="decrement">-</button>
-        <span data-ref="count">0</span>
-        <button data-ref="increment">+</button>
-      </div>
+        <input data-ref="stepInput" type="range" min="1" max="50" value="5">
+        <span>Step: <span data-ref="step">5</span></span>
+        <div>
+          <div>
+            <button data-ref="decrement">-</button>
+            <span data-ref="count">1</span>
+            <button data-ref="increment">+</button>
+          </div>
     </x-counter>
   </div>
 
@@ -39,7 +41,7 @@
         increment: one('button'),
         count: one('span')
       }))
-      .withProps((p) => ({ initial: p.number(), step: p.number(1) }))
+      .withProps((p) => ({ initial: p.number(), step: p.number(5) }))
       .setup((ctx) => {
         const $count = atom(ctx.props.$initial.get());
 
@@ -58,4 +60,5 @@
   </script>
 
 </body>
+
 </html>

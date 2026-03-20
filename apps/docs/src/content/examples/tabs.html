@@ -18,7 +18,7 @@
   <div data-type="html">
     <x-tabs active="overview">
       <div role="tablist" data-ref="tablist">
-        <button role="tab" data-value="overview">Overview</button>
+        <button role="tab" data-value="overview" aria-selected="true">Overview</button>
         <button role="tab" data-value="features">Features</button>
         <button role="tab" data-value="setup">Setup</button>
       </div>
@@ -26,7 +26,7 @@
         <h3>Overview</h3>
         <p>nano-wc is a lightweight web components framework powered by nanostores.</p>
       </x-tab-panel>
-      <x-tab-panel value="features">
+      <x-tab-panel value="features" hidden>
         <h3>Features</h3>
         <ul>
           <li>Reactive props via nanostores</li>
@@ -34,7 +34,7 @@
           <li>Context-based parent-child communication</li>
         </ul>
       </x-tab-panel>
-      <x-tab-panel value="setup">
+      <x-tab-panel value="setup" hidden>
         <h3>Setup</h3>
         <pre><code>npm install nano-wc nanostores</code></pre>
       </x-tab-panel>
@@ -78,7 +78,6 @@
 
         ctx.effect(parent.$active, (active) => {
           const visible = active === ctx.props.$value.get();
-          ctx.host.style.display = visible ? "" : "none";
           ctx.host.setAttribute("role", "tabpanel");
           ctx.host.hidden = !visible;
         });

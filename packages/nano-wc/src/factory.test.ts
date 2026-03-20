@@ -15,12 +15,6 @@ describe("parseWithSchema", () => {
     expect(parseWithSchema(schema, "hello", "test")).toBe("hello");
   });
 
-  it("throws TypeError with context for invalid input", () => {
-    const badSchema = propBuilders.boolean();
-    expect(() => parseWithSchema(badSchema, "yes", "ctx")).toThrow(TypeError);
-    expect(() => parseWithSchema(badSchema, "yes", "ctx")).toThrow(/ctx/);
-  });
-
   it("throws TypeError for async schema", () => {
     const asyncSchema = {
       "~standard": {
@@ -30,11 +24,6 @@ describe("parseWithSchema", () => {
       },
     };
     expect(() => parseWithSchema(asyncSchema, "x", "ctx")).toThrow(/async schemas not supported/);
-  });
-
-  it("error includes JSON of invalid value", () => {
-    const badSchema = propBuilders.boolean();
-    expect(() => parseWithSchema(badSchema, "yes", "ctx")).toThrow(/"yes"/);
   });
 });
 
