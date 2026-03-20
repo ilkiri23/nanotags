@@ -34,10 +34,6 @@
     "./context": {
       "types": "./dist/context.d.mts",
       "import": "./dist/context.mjs"
-    },
-    "./defer": {
-      "types": "./dist/defer.d.mts",
-      "import": "./dist/defer.mjs"
     }
   },
   "scripts": {
@@ -85,10 +81,6 @@
     {
       "path": ".size-check/render.mjs",
       "limit": "410 B"
-    },
-    {
-      "path": ".size-check/defer.mjs",
-      "limit": "179 B"
     },
     {
       "path": ".size-check/context.mjs",

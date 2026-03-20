@@ -87,12 +87,6 @@ const { title } = Astro.props;
 </body>
 </html>
 <script>
-  import { deferSetups, flushSetups } from "nano-wc/defer";
-
-  document.addEventListener("astro:before-swap", () => deferSetups());
-  document.addEventListener("astro:page-load", () => flushSetups());
-</script>
-<script>
   import { define } from "nano-wc";
   import { atom } from "nanostores";
   import styles from "./styles.module.css";

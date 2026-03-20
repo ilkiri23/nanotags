@@ -203,8 +203,6 @@ export function collectRefs<Refs extends RefsSchema>(
   return result;
 }
 
-const Q = Symbol.for("nano-wc.q");
-
 export function createComponent<
   Props extends PropsSchema,
   Refs extends RefsSchema,
@@ -267,11 +265,6 @@ export function createComponent<
     }
 
     connectedCallback() {
-      const q: [HTMLElement, () => void][] | undefined = (globalThis as any)[Q];
-      if (q) {
-        q.push([this, () => this.#connect()]);
-        return;
-      }
       this.#connect();
     }
 
