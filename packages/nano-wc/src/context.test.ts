@@ -599,13 +599,26 @@ describe("bind", () => {
     expect(ctrl.value).toBe("programmatic");
   });
 
-  it("throws when element has no .value property", () => {
-    const tag = uniqueTag("bind");
-    const $val = atom("");
-    define(tag, (ctx) => {
-      ctx.bind($val, ctx.host as any);
+  it("works with not-yet-upgraded custom element child", () => {
+    const childTag = uniqueTag("bind-child");
+    const parentTag = uniqueTag("bind-parent");
+    const $val = atom("from-parent");
+    define(parentTag, (ctx) => {
+      const child = ctx.getElement(childTag);
+      ctx.bind($val, child, { prop: "value", event: "change" });
     });
-    expect(() => mount(`<${tag}></${tag}>`)).toThrow(/has no .value property/);
+    const el = mount(`<${parentTag}><${childTag}></${childTag}></${parentTag}>`);
+    const child = el.querySelector(childTag)! as HTMLElement & { value: string };
+    // Before child upgrade, value is set as plain property
+    expect(child.value).toBe("from-parent");
+    // Define and upgrade child
+    define(childTag)
+      .withProps((p) => ({ value: p.string("default") }))
+      .setup(() => {});
+    customElements.upgrade(child);
+    // Store update propagates through accessor
+    $val.set("updated");
+    expect(child.value).toBe("updated");
   });
 
   it("one-way bind with { prop } — store→el, no event listener", () => {

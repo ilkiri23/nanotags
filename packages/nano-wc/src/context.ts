@@ -210,7 +210,6 @@ export class Context<Props extends PropsSchema, Refs extends RefsSchema> {
     const prop = opts?.prop ?? propEvent[0];
     const event = opts ? opts?.event : propEvent[1];
     const el = control as any;
-    invariant(prop in control, `has no .${prop} property`);
 
     el[prop] = store.get();
     event && this.on(control, event, () => store.set(el[prop]));

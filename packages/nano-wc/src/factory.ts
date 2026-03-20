@@ -101,9 +101,19 @@ export function createReactiveProps<Schema extends PropsSchema>(
   normalized.forEach((def, key) => {
     const ctx = `${host.tagName} component. Prop "${key}"`;
     const attrName = camelToKebab(key);
-    const store = def.attribute
-      ? atom(parseWithSchema(def.schema, host.getAttribute(attrName), ctx))
-      : atom<unknown>();
+
+    // Capture pre-upgrade own property before defining accessor
+    const ownDesc = Object.getOwnPropertyDescriptor(host, key);
+    const hasPre = ownDesc !== undefined && "value" in ownDesc;
+    if (hasPre) delete (host as unknown as Record<string, unknown>)[key];
+
+    const store = hasPre
+      ? atom(def.attribute ? parseWithSchema(def.schema, ownDesc.value, ctx) : ownDesc.value)
+      : def.attribute
+        ? atom(parseWithSchema(def.schema, host.getAttribute(attrName), ctx))
+        : atom<unknown>();
+    if (hasPre) storesInit[key] = true;
+
     const updateFromAttr = def.attribute
       ? (v: string | null) => store.set(parseWithSchema(def.schema, v, ctx))
       : null;
@@ -132,9 +142,11 @@ export function createReactiveProps<Schema extends PropsSchema>(
     hydrateProps(h: HTMLElement) {
       for (const [key, def] of normalized) {
         const store = (stores as Record<string, import("nanostores").WritableAtom>)[`$${key}`]!;
+        if (storesInit[key]) {
+          if (def.attribute) (h as any)[key] = store.get();
+          continue;
+        }
         const raw = def.get ? def.get(h, key) : undefined;
-        // already set from the property setter
-        if (storesInit[key]) continue;
         store.set(parseWithSchema(def.schema, raw, `${h.tagName} component. Prop "${key}"`));
       }
     },

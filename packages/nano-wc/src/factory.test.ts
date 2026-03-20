@@ -113,6 +113,48 @@ describe("createReactiveProps", () => {
   });
 });
 
+describe("createReactiveProps — pre-upgrade properties", () => {
+  it("captures pre-upgrade attribute-backed prop and sets store", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { active: boolean };
+    (div as any).active = true;
+    const { stores } = createReactiveProps(div, { active: propBuilders.boolean() });
+    expect(stores.$active.get()).toBe(true);
+    expect(div.active).toBe(true);
+  });
+
+  it("hydrateProps syncs attribute for pre-upgrade attribute-backed prop", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { active: boolean };
+    (div as any).active = true;
+    const result = createReactiveProps(div, { active: propBuilders.boolean() });
+    result.hydrateProps(div);
+    expect(div.getAttribute("active")).toBe("true");
+  });
+
+  it("captures pre-upgrade non-attribute (json) prop", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { items: number[] };
+    (div as any).items = [1, 2, 3];
+    const result = createReactiveProps(div, { items: propBuilders.json(v.array(v.number()), []) });
+    expect(result.stores.$items.get()).toEqual([1, 2, 3]);
+    result.hydrateProps(div);
+    expect(result.stores.$items.get()).toEqual([1, 2, 3]);
+  });
+
+  it("parses pre-upgrade value through schema", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { count: number };
+    (div as any).count = "42";
+    const { stores } = createReactiveProps(div, { count: propBuilders.number() });
+    expect(stores.$count.get()).toBe(42);
+  });
+
+  it("standard case without pre-upgrade props unchanged", () => {
+    const div = document.createElement("div") as unknown as HTMLElement & { label: string };
+    div.setAttribute("label", "hello");
+    const { stores } = createReactiveProps(div, { label: propBuilders.string() });
+    expect(stores.$label.get()).toBe("hello");
+    expect(div.label).toBe("hello");
+  });
+});
+
 describe("createReactiveProps — json props", () => {
   const numArraySchema = v.array(v.number());
   const objSchema = v.object({ a: v.number() });
