@@ -188,7 +188,7 @@ describe("emit", () => {
     expect(spy).toHaveBeenCalledOnce();
   });
 
-  it("emit(name, detail) creates bubbling composed CustomEvent", () => {
+  it("emit(name, detail) creates bubbling CustomEvent", () => {
     const tag = uniqueTag("emit");
     let captured: CustomEvent | undefined;
     define(tag, (ctx) => {
@@ -199,7 +199,6 @@ describe("emit", () => {
     expect(captured).toBeDefined();
     expect(captured?.detail).toEqual({ msg: "hi" });
     expect(captured?.bubbles).toBe(true);
-    expect(captured?.composed).toBe(true);
   });
 
   it("options override merged", () => {

@@ -378,7 +378,7 @@ ctx.on(document, "keydown", (e) => {
 
 #### `emit(name, detail?, options?)` / `emit(event)`
 
-Dispatch a bubbling, composed `CustomEvent`, or re-dispatch an existing `Event`.
+Dispatch a bubbling `CustomEvent`, or re-dispatch an existing `Event`.
 
 ```typescript
 ctx.emit("change", { value: 42 });

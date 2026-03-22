@@ -51,7 +51,6 @@ function ensureDocumentHandler(): void {
       entry.element.dispatchEvent(
         new CustomEvent("context-request", {
           bubbles: true,
-          composed: true,
           detail: {
             key,
             callback: (value: unknown) => {
@@ -93,7 +92,6 @@ export function createContext<T>(name?: string): ContextKey<T> {
       ctx.host.dispatchEvent(
         new CustomEvent("context-provider", {
           bubbles: true,
-          composed: true,
           detail: { key },
         }),
       );
@@ -109,7 +107,6 @@ export function createContext<T>(name?: string): ContextKey<T> {
       ctx.host.dispatchEvent(
         new CustomEvent("context-request", {
           bubbles: true,
-          composed: true,
           detail: { key, callback: wrappedCallback },
         }),
       );
