@@ -1,196 +1,120 @@
 ---
 title: Recipes
-description: Common patterns and how-tos for nano-wc
-order: 3
+description: TypeScript augmentation and reusable attachment patterns
+order: 4
 ---
 
-## Parent-child communication
+## TypeScript
 
-When components form a logical group (Tabs/Tab, Accordion/Panel), use the **context protocol** via `createContext` from `nano-wc/context`. The parent provides a typed API, children declare required contexts with `withContexts`:
+Both recipes below use TypeScript [global augmentation](https://www.typescriptlang.org/docs/handbook/declaration-merging.html#global-augmentation) to extend built-in DOM interfaces.
+
+### Augmenting HTMLElementTagNameMap
+
+Register your element so that refs ([`r.one()`/`r.many()`](api#withrefs)), [`ctx.getElement()`](api#getelement), [`ctx.getElements()`](api#getelements), and standard DOM APIs (`querySelector`, `createElement`) return properly typed instances:
 
 ```typescript
-import { createContext } from "nano-wc/context";
+declare global {
+  interface HTMLElementTagNameMap {
+    "x-my-el": InstanceType<typeof MyEl>;
+  }
+}
 
-type TabsAPI = { register: (el: Element) => void; $active: WritableAtom<string> };
-const tabsContext = createContext<TabsAPI>("tabs");
+const MyEl = define("x-my-el")
+  .withProps(/* ... */)
+  .setup(/* ... */);
+```
 
-const XTabs = define("x-tabs").setup((ctx) => {
-  const panels: HTMLElement[] = [];
-  const $active = atom("");
+This also enables typed ref lookups in other components:
 
-  tabsContext.provide(ctx, {
-    register: (el) => panels.push(el),
-    $active,
-  });
-  return { $active };
+```typescript
+r.one("x-my-el"); // typed as InstanceType<typeof MyEl>, validated at runtime
+```
+
+### Typed custom events
+
+Use [`TypedEvent`](api#typedevent) to define type-safe events, then augment `HTMLElementEventMap` so that [`ctx.on()`](api#on), [`ctx.emit()`](api#emit), and `addEventListener` are fully typed:
+
+```typescript
+import type { TypedEvent } from "nano-wc";
+
+type SelectionChangeEvent = TypedEvent<
+  InstanceType<typeof XListBox>,
+  { selected: string[] }
+>;
+
+declare global {
+  interface HTMLElementEventMap {
+    "listbox:change": SelectionChangeEvent;
+  }
+}
+
+// Emit — inside x-listbox setup:
+ctx.emit("listbox:change", { selected: ["a", "b"] });
+
+// Listen — anywhere in the app:
+ctx.on(listboxEl, "listbox:change", (e) => {
+  e.target; // XListBox instance
+  e.detail.selected; // string[]
 });
-
-define("x-tab-panel")
-  .withContexts({ tabs: tabsContext })
-  .setup((ctx) => {
-    ctx.contexts.tabs.register(ctx.host);
-  });
 ```
 
-`withContexts` defers setup until all declared contexts resolve — no callback nesting needed. For dynamic or conditional context access, use `consume()` directly.
+### Combining both augmentations
 
-For **unrelated** components, use events instead:
-
-```typescript
-// Producer
-ctx.emit("cart:updated", { items });
-
-// Consumer
-ctx.on(document, "cart:updated", (e) => {
-  renderCart(e.detail.items);
-});
-```
-
-## Form binding
-
-Use `ctx.bind()` for two-way binding between form controls and stores. The store is the source of truth:
-
-```typescript
-import { atom } from "nanostores";
-
-define("x-settings")
-  .withRefs((r) => ({
-    name: r.one("input"),
-    theme: r.one("select"),
-    notifications: r.one("input"),
-  }))
-  .setup((ctx) => {
-    const $name = atom("Ada");
-    const $theme = atom("light");
-    const $notifications = atom(true);
-
-    ctx.bind($name, ctx.refs.name);
-    ctx.bind($theme, ctx.refs.theme);
-    ctx.bind($notifications, ctx.refs.notifications);
-  });
-```
-
-Control types are auto-detected:
-
-- `input[type=checkbox]` syncs `.checked` (listens to `change`)
-- `input[type=number|range]` reads `.valueAsNumber` (listens to `input`)
-- `input[type=text]` / `textarea` syncs `.value` (listens to `input`)
-- `select` syncs `.value` (listens to `change`)
-
-### Binding to custom elements
-
-Without options, `ctx.bind()` works with any element that has a `.value` property and emits `change` events. When building nano-wc components intended as form controls, expose `value` as a **prop**:
-
-```typescript
-// ✅ value as prop — available at construction time
-define("x-color-picker")
-  .withProps((p) => ({ value: p.string("#000000") }))
-  .setup((ctx) => {
-    // setup logic: render swatches, handle clicks, etc.
-    // When value changes internally, dispatch change event:
-    ctx.emit("change");
-  });
-```
-
-This way a parent component can `ctx.bind($color, ctx.refs.picker)` safely — the `.value` property exists as soon as the element is created, regardless of setup ordering between parent and child.
-
-For components that expose a different property, use the options form:
-
-```typescript
-// One-way: store → element only (no event listener)
-ctx.bind($theme, ctx.refs.themeToggle, { prop: "theme" });
-
-// Two-way: store ↔ element via custom prop + event
-ctx.bind($val, ctx.refs.editor, { prop: "value", event: "change" });
-```
-
-For components that wrap an imperative resource (e.g. a code editor), use a [property-only prop](/docs/api/#property-only-props) (`attribute: false`) to avoid reflecting large content to a DOM attribute, and sync the resource bidirectionally with the prop atom in `setup`.
-
-## Dynamic lists
-
-Use `renderList` from `nano-wc/render` for keyed list reconciliation. It creates, updates, reorders, and removes DOM elements efficiently:
-
-```html
-<x-todo-list>
-  <ul data-ref="list">
-    <template data-ref="itemTpl">
-      <li>
-        <input type="checkbox" />
-        <span class="text"></span>
-        <button class="remove">×</button>
-      </li>
-    </template>
-  </ul>
-</x-todo-list>
-```
+For a complete component definition, declare both the element and its events together:
 
 ```typescript
 import { define } from "nano-wc";
-import { renderList } from "nano-wc/render";
-import { atom } from "nanostores";
+import type { TypedEvent } from "nano-wc";
 
-type Todo = { id: number; text: string; done: boolean };
+type TabsChangedEvent = TypedEvent<InstanceType<typeof XTabs>, { index: number }>;
 
-define("x-todo-list")
-  .withRefs((r) => ({
-    list: r.one("ul"),
-    itemTpl: r.one("template"),
-  }))
+declare global {
+  interface HTMLElementTagNameMap {
+    "x-tabs": InstanceType<typeof XTabs>;
+  }
+  interface HTMLElementEventMap {
+    "tabs:changed": TabsChangedEvent;
+  }
+}
+
+const XTabs = define("x-tabs")
+  .withProps((p) => ({ active: p.string("") }))
   .setup((ctx) => {
-    const $todos = atom<Todo[]>([]);
-
-    ctx.effect($todos, (todos) => {
-      renderList(ctx.refs.list, ctx.refs.itemTpl, {
-        data: todos,
-        key: (todo) => todo.id,
-        update: (el, todo) => {
-          const checkbox = ctx.getElement<"input">(el, "input");
-          const text = ctx.getElement(el, ".text");
-          checkbox.checked = todo.done;
-          text.textContent = todo.text;
-        },
-      });
-    });
+    // ...
   });
 ```
 
-## State templates with render
+## Attachments
 
-Use `render` to switch between loading, error, and content states:
+Attachments are reusable functions that receive the setup context (`ctx`) and wire up behavior — effects, event listeners, cleanup — without creating a new component.
+
+Unlike regular helper functions, attachments are **lifecycle-aware**: because they receive `ctx`, everything they register via [`ctx.on()`](api#on), [`ctx.effect()`](api#effect), or [`ctx.onCleanup()`](api#oncleanup) is automatically cleaned up when the host component disconnects. A plain helper that calls `addEventListener` would leak listeners — an attachment never does.
+
+Attachments also compose naturally with the [context protocol](guides#context-api). An attachment can call [`consume()`](api#contextconsume) to access ancestor state, or accept a context value as a parameter — letting you build reusable behaviors (keyboard navigation, drag handling, focus traps) that participate in the component tree without being components themselves.
+
+### Writing your own
+
+An attachment is just a function — no special API needed. Follow these conventions:
+
+1. Accept `ctx: SetupContext` as the first parameter
+2. Use [`ctx.on()`](api#on), [`ctx.effect()`](api#effect), [`ctx.onCleanup()`](api#oncleanup) for auto-cleanup
+3. Accept configuration via additional parameters or an options object
+4. Optionally return state or methods for the calling component
 
 ```typescript
-import { render } from "nano-wc/render";
-
-define("x-profile")
-  .withRefs((r) => ({
-    container: r.one("div"),
-    loadingTpl: r.one<"template">("#loading"),
-    errorTpl: r.one<"template">("#error"),
-    profileTpl: r.one<"template">("#profile"),
-  }))
-  .setup((ctx) => {
-    ctx.effect($state, (state) => {
-      if (state.loading) {
-        render(ctx.refs.container, ctx.refs.loadingTpl);
-      } else if (state.error) {
-        render(ctx.refs.container, ctx.refs.errorTpl);
-      } else {
-        render(ctx.refs.container, ctx.refs.profileTpl, {
-          data: state.data,
-          update: (el, user) => {
-            ctx.getElement(el, ".name").textContent = user.name;
-          },
-        });
-      }
-    });
+export function attachClickOutside(
+  ctx: SetupContext,
+  callback: () => void,
+) {
+  ctx.on(document, "click", (e) => {
+    if (!ctx.host.contains(e.target as Node)) callback();
   });
+}
 ```
 
-## Focus management
+### Example: roving focus
 
-### Roving focus
-
-Arrow-key navigation through a group of focusable elements. Create a reusable attachment:
+Arrow-key navigation through a group of focusable elements:
 
 ```typescript
 export function attachRovingFocus(
@@ -227,55 +151,14 @@ export function attachRovingFocus(
 }
 ```
 
-### Focus trap
-
-Keep focus within a container (modals, dialogs):
+Usage:
 
 ```typescript
-export function attachFocusTrap(ctx: SetupContext, container: HTMLElement) {
-  const focusable = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-  ctx.on(container, "keydown", (e) => {
-    if (e.key !== "Tab") return;
-
-    const elements = [...container.querySelectorAll<HTMLElement>(focusable)];
-    if (!elements.length) return;
-
-    const first = elements[0];
-    const last = elements[elements.length - 1];
-
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
+define("x-tabs")
+  .withRefs((r) => ({ tablist: r.one("div"), tabs: r.many("[role=tab]") }))
+  .setup((ctx) => {
+    attachRovingFocus(ctx, ctx.refs.tablist, ctx.refs.tabs, {
+      onFocus: (el) => activate(el.dataset.value),
+    });
   });
-}
 ```
-
-## Typed custom events
-
-Make events type-safe across components:
-
-```typescript
-import type { TypedEvent } from "nano-wc";
-
-type SelectionChangeEvent = TypedEvent<InstanceType<typeof XListBox>, { selected: string[] }>;
-
-declare global {
-  interface HTMLElementEventMap {
-    "listbox:change": SelectionChangeEvent;
-  }
-}
-
-// Emit
-ctx.emit("listbox:change", { selected: ["a", "b"] });
-
-// Listen — fully typed
-ctx.on(listboxEl, "listbox:change", (e) => {
-  console.log(e.detail.selected); // string[]
-});
-```
-

@@ -4,10 +4,10 @@ export const siteConfig = {
     name: "Pavel Grinchenko",
     twitter: "https://x.com/psd_coder",
   },
-  github: "https://github.com//psd-coder/nano-wc",
+  github: "https://github.com/psd-coder/nano-wc",
   license: {
     name: "MIT",
-    url: "https://github.com//psd-coder/nano-wc/blob/main/LICENSE",
+    url: "https://github.com/psd-coder/nano-wc/blob/main/LICENSE",
   },
   evilMartians: {
     name: "Evil Martians",

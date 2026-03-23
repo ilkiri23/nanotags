@@ -1,7 +1,7 @@
 ---
 title: API
 description: Complete API reference for nano-wc
-order: 2
+order: 3
 ---
 
 ## Builder API
@@ -9,13 +9,15 @@ order: 2
 `define(name)` returns a `ComponentBuilder` with a fluent, immutable chain. Each step returns a new builder instance, accumulating type information along the way:
 
 ```typescript
-define("x-my-comp")            // → ComponentBuilder (entry point)
-  .withProps((p) => ({ ... })) // → new ComponentBuilder with prop types added
-  .withRefs((r) => ({ ... }))  // → new ComponentBuilder with ref types added
-  .setup((ctx) => { ... });    // → ComponentCtor (terminates the chain, registers the element)
+define("x-my-comp") // ComponentBuilder (entry point)
+  .withProps((p) => ({ ... })) // + prop types
+  .withRefs((r) => ({ ... })) // + ref types
+  .setup((ctx) => { ... }); // terminates chain, registers element
 ```
 
-For simple components that don't need props or refs, pass the setup function directly as the second argument — skipping the builder chain entirely:
+`withProps()`, `withRefs()`, and `withContexts()` are optional and can appear in any order. `setup()` ends the chain — it calls `customElements.define` under the hood and returns a typed constructor.
+
+For simple components, pass setup directly as the second argument:
 
 ```typescript
 const Logger = define("x-logger", (ctx) => {
@@ -23,24 +25,24 @@ const Logger = define("x-logger", (ctx) => {
 });
 ```
 
-In the fluent form, `withProps` and `withRefs` are optional and can appear in any order. `setup` ends the chain — it calls `customElements.define` under the hood and returns a typed constructor.
+### withProps
 
-## Props
-
-Declare validated, reactive attributes via `withProps`. Each prop becomes:
+Declare validated, reactive attributes via `withProps()`. Each prop becomes:
 
 - An observed HTML attribute (auto-synced via `attributeChangedCallback`)
-- A nanostores `WritableAtom` at `ctx.props.$propName`
+- A [Nano Stores](https://github.com/nanostores/nanostores) `WritableAtom` at `ctx.props.$propName`
 - A typed getter/setter on the element instance
 
-Every prop is exposed as a nanostore for a uniform, lightweight API — even props that don't strictly need reactivity. This keeps the surface area consistent: subscribe when you need updates, call `store.get()` when you just need the current value once.
+Prop names are camelCase in JS and automatically mapped to kebab-case HTML attributes: `tabIndex` &rarr; `tab-index`, `isOpen` &rarr; `is-open`. The property setter reflects back to the attribute.
 
-Five built-in validators coerce raw attribute strings to typed values (plus `p.json()` for complex data — see [JSON props](#json-props)):
+Four built-in validators coerce raw attribute strings to typed values:
 
-- `p.string()` — coerces any value to string (`null` → `""`)
-- `p.number()` — parses to number (`null` → `0`, throws on non-numeric)
-- `p.boolean()` — `"true"` / `""` (bare attr) → `true`, `"false"` / `null` → `false`
-- `p.oneOf(options)` — picklist enum (`"a"` → `"a"`, throws on invalid)
+| Validator | Coercion | `null` attr |
+|-----------|----------|-------------|
+| `p.string()` | `String(val)` | `""` |
+| `p.number()` | `Number(val)` | `0` |
+| `p.boolean()` | `"true"` / `""` &rarr; `true`, `"false"` &rarr; `false` | `false` |
+| `p.oneOf(opts)` | Picklist enum, throws on invalid | throws |
 
 ```typescript
 .withProps((p) => ({
@@ -51,218 +53,217 @@ Five built-in validators coerce raw attribute strings to typed values (plus `p.j
 }))
 ```
 
-Each validator accepts an optional fallback value used when the attribute is absent. Pass `null` as fallback to make the prop nullable — the inferred type becomes `T | null`:
+Each validator accepts an optional fallback. Pass `null` to make the prop nullable (inferred type becomes `T | null`):
 
 ```typescript
 .withProps((p) => ({
-  label: p.string(null),    // string | null — absent attr → null instead of ""
-  count: p.number(null),    // number | null
-  open:  p.boolean(null),   // boolean | null
-  size:  p.oneOf(["s", "m", "l"], null),  // "s" | "m" | "l" | null
+  label: p.string(null), // string | null
+  size:  p.oneOf(["s", "m", "l"], null), // "s" | "m" | "l" | null
 }))
 ```
 
-Props use [Standard Schema](https://github.com/standard-schema/standard-schema) internally, so any compatible validator (Valibot, Zod, ArkType) works as a custom prop schema too.
+Props use [Standard Schema](https://github.com/standard-schema/standard-schema) internally, so any compatible validator (Valibot, Zod, ArkType) works as a custom prop schema.
 
-### JSON props
+#### JSON props
 
-For complex data that doesn't fit into a string attribute, use `p.json()`. It accepts any Standard Schema validator and an optional fallback:
+For complex data that doesn't fit into a string attribute, use `p.json()` with a Standard Schema validator:
 
 ```typescript
+import * as v from "valibot";
+
 .withProps((p) => ({
   items: p.json(v.array(v.object({ id: v.number(), name: v.string() })), []),
-  config: p.json(v.object({ theme: v.string() })),  // fallback defaults to null → T | null
+  config: p.json(v.object({ theme: v.string() })), // defaults to null
 }))
 ```
 
 JSON props differ from attribute-backed props:
 
-- **Not observed** — not in `observedAttributes`, no `attributeChangedCallback` re-parsing
+- **Not observed** — not in `observedAttributes`, no `attributeChangedCallback`
 - **Setter writes to atom directly** — no attribute created in the DOM
 - **Hydrated once on connect** — reads from a `<script type="application/json">` tag, falls back to a kebab-case attribute
 
 ```html
-<!-- preferred: script tag (no attribute bloat, no escaping) -->
+<!-- preferred: script tag (no escaping needed) -->
 <x-list>
   <script type="application/json" data-prop="items">
-    [
-      { "id": 1, "name": "Alice" },
-      { "id": 2, "name": "Bob" }
-    ]
+    [{ "id": 1, "name": "Alice" }, { "id": 2, "name": "Bob" }]
   </script>
 </x-list>
 
-<!-- also works: inline attribute (JSON string) -->
+<!-- also works: inline attribute -->
 <x-list items='[{"id":1,"name":"Alice"}]'></x-list>
 ```
 
-After hydration the value can be set programmatically:
+After hydration, set programmatically:
 
 ```typescript
-el.items = [{ id: 3, name: "Charlie" }]; // updates atom directly, no DOM attribute
+el.items = [{ id: 3, name: "Charlie" }]; // updates atom, no DOM attribute
 ```
 
-### Property-only props
+#### Property-only props
 
-Under the hood, every prop entry is either a Standard Schema (attribute-synced by default) or a `PropDef` object with explicit options:
-
-```typescript
-type PropDef<T> = {
-  schema: StandardSchemaV1<unknown, T>;
-  attribute?: boolean; // default: true — reflect to/from HTML attribute
-  get?: (host: HTMLElement, key: string) => unknown; // custom hydration reader
-};
-```
-
-Set `attribute: false` to create a prop that exists only as a JavaScript property and a nanostores atom — no HTML attribute involved. The property is defined on the element in the **constructor**, so it's available immediately after `document.createElement()`, before `connectedCallback` or `setup` run.
+Set `attribute: false` to create a prop that exists only as a JS property and a Nano Stores atom — no HTML attribute. Defined in the **constructor**, available immediately after `document.createElement()`:
 
 ```typescript
 .withProps((p) => ({
-  label: p.string(),  // normal attribute-backed prop
-  value: { schema: p.string(""), attribute: false },  // property-only
+  label: p.string(), // attribute-backed
+  value: { schema: p.string(""), attribute: false }, // property-only
 }))
 ```
 
 This is useful when:
 
-- **The value is large or complex** — editor content, serialized state, binary data. Writing kilobytes to a DOM attribute on every change is wasteful and pollutes devtools.
-- **A component wraps an imperative resource** (CodeMirror, canvas, WebGL context) and exposes its state as `.value`. The prop provides the stable property descriptor from construction time, while `setup` wires bidirectional sync between the prop atom and the underlying resource.
-- **A parent uses `ctx.bind()` on a child custom element**. `bind()` checks `"value" in control` during the parent's setup. If `.value` were a mixin (returned from `setup`), it would only exist after the child's `connectedCallback` — which may not have fired yet. An `attribute: false` prop guarantees the property exists from the moment the element is created, regardless of setup ordering.
+- The value is large or complex (editor content, serialized state) — writing kilobytes to a DOM attribute is wasteful
+- A component wraps an imperative resource (CodeMirror, canvas) and exposes its state as `.value`
+- A parent uses `ctx.bind()` on a child — `bind()` needs the `.value` property to exist from construction time, before setup runs
 
-You can combine `attribute: false` with a custom `get` for hydration — `p.json()` does exactly this internally.
+The full `PropDef` shape:
 
-## Refs
+```typescript
+type PropDef<T> = {
+  schema: StandardSchemaV1<unknown, T>;
+  attribute?: boolean; // default: true
+  get?: (host: HTMLElement, key: string) => unknown; // custom hydration reader
+};
+```
 
-Declare typed element references via `withRefs`. Refs query the component's own DOM, skipping elements inside nested custom elements to respect component boundaries.
+### withRefs
 
-Both `r.one()` and `r.many()` are generic. When you pass a tag name, it's used for both **type inference** (via `HTMLElementTagNameMap`) and **runtime validation** (checks that matched element's tag actually matches):
+Declare typed element references. Refs query the component's own DOM, skipping elements inside nested custom elements by default.
+
+`r.one()` returns a single element (throws if missing), `r.many()` returns an array (throws if empty). When you pass a tag name, it's used for both **type inference** and **runtime validation**:
 
 ```typescript
 .withRefs((r) => ({
-  trigger: r.one("button"),   // HTMLButtonElement — validated at runtime
-  items:   r.many("li"),      // HTMLLIElement[]   — validated at runtime
+  trigger: r.one("button"), // HTMLButtonElement — validated
+  items:   r.many("li"), // HTMLLIElement[] — validated
 }))
 ```
 
-By default, refs match `[data-ref="name"]`. When you need a custom CSS selector, pass it as a string — non-tag strings (containing `.`, `#`, `[`, etc.) are treated as selectors. The return type falls back to `Element` since there's no tag name to infer from:
+By default, refs match `[data-ref="name"]`. Non-tag strings (containing `.`, `#`, `[`, etc.) are treated as CSS selectors:
 
 ```typescript
 .withRefs((r) => ({
-  custom: r.one(".my-trigger"),  // Element (no runtime tag check)
+  custom: r.one(".my-trigger"), // Element
+  typed:  r.one<"button">(".my-trigger"), // HTMLButtonElement (type-only)
+  union:  r.one(["button", "a"]), // HTMLButtonElement | HTMLAnchorElement
+  any:    r.many<HTMLElement>(), // HTMLElement[] (no tag validation)
 }))
 ```
 
-To get proper typing with a custom selector, pass the tag name as a generic parameter — though this is type-only, no runtime tag validation:
+#### Ref ownership
 
-```typescript
-.withRefs((r) => ({
-  custom: r.one<"button">(".my-trigger"),  // HTMLButtonElement (no runtime tag check)
-}))
-```
-
-This also works with custom element tag names — if you [augment `HTMLElementTagNameMap`](#augmenting-htmlelementtagnamemap), refs to your own components are fully typed:
-
-```typescript
-r.one("x-child"); // typed as InstanceType<typeof XChild>, validated at runtime
-```
-
-### Typing refs to custom elements
-
-When referencing custom elements that aren't in `HTMLElementTagNameMap`, you have two additional options:
-
-**Direct Element generic** — pass an arbitrary Element subtype without any augmentation:
-
-```typescript
-.withRefs((r) => ({
-  panes: r.many<HTMLElement>(),
-  editor: r.one<HTMLElement & { getValue(): string }>(),
-}))
-```
-
-No runtime tag validation — only type narrowing. Works with any `Element` subtype.
-
-**Array of tags** — pass multiple tag names for a union type (requires `HTMLElementTagNameMap` augmentation for custom tags):
-
-```typescript
-.withRefs((r) => ({
-  trigger: r.one(["button", "a"]),  // HTMLButtonElement | HTMLAnchorElement
-  items:   r.many(["li", "dt"]),    // (HTMLLIElement | HTMLDListElement)[]
-}))
-```
-
-No runtime tag validation for arrays — type inferred via `HTMLElementTagNameMap` union.
-
-Both builders throw if refs can't be resolved:
-
-- `r.one()` — throws if the element is missing
-- `r.many()` — throws if no elements found
-
-### Ref scoping and ownership
-
-By default, refs are **scoped** — elements inside nested custom elements are skipped. This keeps components independent: an `x-tabs` component won't accidentally collect refs from a deeply nested `x-dialog`.
+By default, a component **owns** only its direct refs — elements inside nested custom elements are skipped for proper encapsulation:
 
 ```html
 <x-parent>
-  <span data-ref="title">found ✓</span>
+  <span data-ref="title">owned by x-parent</span>
   <x-child>
-    <span data-ref="subtitle">skipped ✗</span>
+    <span data-ref="subtitle">owned by x-child, skipped by x-parent</span>
   </x-child>
 </x-parent>
 ```
 
-This works well for flat components, but breaks with **slot-based composition**. Frameworks like Astro compose UI by passing components into structural wrappers (split panes, collapsible sections) as slot content. These wrappers might be custom elements too, so they block ref resolution — even though the slotted content conceptually belongs to the parent:
+With **slot-based composition** (e.g. Astro components passed into structural wrappers), refs may end up inside other custom elements even though they conceptually belong to the outer component. To claim ownership, prefix the ref with the component's tag name — `<custom-element>:<ref-name>`:
 
-```astro
-<!-- x-code-example owns all these refs, but ResizablePanes blocks them -->
+```html
 <x-code-example>
-  <ResizablePanes>           <!-- ← custom element boundary blocks refs below -->
-    <ResizablePane>
-      <button data-ref="tabs">...</button>
-      <CodeEditor data-ref="editor" />
-    </ResizablePane>
-  </ResizablePanes>
+  <x-resizable-panes>
+    <button data-ref="x-code-example:tabs">owned by x-code-example</button>
+  </x-resizable-panes>
 </x-code-example>
 ```
 
-**Owned refs** solve this. Prefix `data-ref` with the owning component's tag name — the ref is collected deeply, ignoring any custom element boundaries:
+The JS definition stays the same — each ref automatically checks both `[data-ref="name"]` (direct ownership) and `[data-ref="x-component:name"]` (explicit ownership). You can mix both in the same component.
 
-```astro
-<x-code-example>
-  <ResizablePanes>
-    <ResizablePane>
-      <button data-ref="x-code-example:tabs">...</button>
-      <CodeEditor data-ref="x-code-example:editor" />
-    </ResizablePane>
-  </ResizablePanes>
-</x-code-example>
-```
+### withContexts
 
-The JS definition stays exactly the same — no options needed:
+Declares required contexts on the builder. Setup is deferred until all contexts resolve:
 
 ```typescript
-define("x-code-example").withRefs((r) => ({
-  tabs: r.many("button"),
-  editor: r.one("x-code-editor"),
-}));
+import { createContext } from "nano-wc/context";
+
+const tabsCtx = createContext<TabsAPI>("tabs");
+
+define("x-tab")
+  .withContexts({ tabs: tabsCtx })
+  .setup((ctx) => {
+    ctx.contexts.tabs.register(ctx.host);
+  });
 ```
 
-Each ref automatically checks both selectors: `[data-ref="name"]` (shallow, with blocking) and `[data-ref="x-component:name"]` (deep, no blocking). You can freely mix owned and unowned refs in the same component.
+If a context never resolves (no provider ancestor), setup never runs. For dynamic or conditional access, use `consume()` directly — see the [Context API guide](guides#context-api).
+
+
+### setup
+
+The `setup()` function receives a [SetupContext](api#setup-context) object and runs when the component connects. It wires up behavior: event listeners, reactive effects, bindings, and cleanup.
+
+#### Mixin (return value)
+
+Returning an object from `setup()` assigns its members to the element instance, fully typed on the constructor:
+
+```typescript
+const Timer = define("x-timer").setup((ctx) => {
+  let id: number;
+  return {
+    start() { id = setInterval(() => ctx.emit("tick"), 1000); },
+    stop()  { clearInterval(id); },
+  };
+});
+
+document.body.appendChild(new Timer());
+document.querySelector("x-timer")!.start();
+```
+
+Mixin members are available only after the element is connected (i.e. after `setup()` runs).
 
 ## Setup Context
 
-The `setup` function receives a context object with the following properties and methods.
+The `setup()` function receives a context object (`ctx`) with properties and methods for building reactive components.
 
-### Properties
+### host
 
-- `ctx.host` — the component's `HTMLElement` itself, useful for appending content or reading layout
-- `ctx.props` — reactive prop stores, each prefixed with `$` (e.g. `ctx.props.$count`). See [Props](#props)
-- `ctx.refs` — resolved element references. See [Refs](#refs)
+The component's `HTMLElement` itself. Useful for reading layout, appending content, or passing to external APIs.
 
-### Reactivity
+```typescript
+ctx.host.classList.add("active");
+```
 
-#### `effect(store, callback)` / `effect([storeA, storeB], callback)`
+### props
 
-Subscribe to one or more nanostores atoms. Callback fires immediately with current value(s). Unsubscribes on disconnect.
+Reactive prop stores, each prefixed with `$`. Every prop declared via `withProps()` becomes a Nano Stores `WritableAtom`:
+
+```typescript
+ctx.props.$count.get(); // read current value
+ctx.props.$count.set(42); // update value
+ctx.effect(ctx.props.$count, (val) => { /* react */ });
+```
+
+### refs
+
+Resolved element references declared via `withRefs()`:
+
+```typescript
+ctx.refs.trigger // HTMLButtonElement
+ctx.refs.items // HTMLLIElement[]
+```
+
+### contexts
+
+Resolved context values when `withContexts()` is used:
+
+```typescript
+ctx.contexts.tabs.register(ctx.host);
+ctx.effect(ctx.contexts.tabs.$active, (active) => { /* ... */ });
+```
+
+### effect
+
+`effect(store, callback)` / `effect([storeA, storeB], callback)`
+
+Subscribe to one or more Nano Stores atoms. Callback fires immediately with current value(s). Unsubscribes on disconnect.
 
 ```typescript
 ctx.effect(ctx.props.$count, (count) => {
@@ -274,353 +275,131 @@ ctx.effect([storeA, storeB], (a, b) => {
 });
 ```
 
-#### `bind(store, element, options?)`
+### bind
 
-Two-way binds a DOM control to a nanostores atom. The store is the source of truth — the control is set from the store on bind.
+`bind(store, element, options?)`
 
-**No options** — full auto-detect, two-way binding. Works with native form controls and any custom element that exposes a `.value` property and emits `change` events:
+Two-way binds a DOM control to a Nano Stores atom. The store is the source of truth — the control is set from the store on bind.
 
-- `input[type=checkbox]` — syncs `.checked` with a boolean atom (listens to `change`)
-- `input[type=number]` / `input[type=range]` — reads `.valueAsNumber` automatically (listens to `input`)
-- `input[type=text|email|...]` / `textarea` — syncs `.value` with a string atom (listens to `input`)
-- `select` — syncs `.value` with a string atom (listens to `change`)
-- Custom elements with `.value` — syncs `.value` (listens to `change`)
+**No options** — auto-detects control type:
+
+| Control | Property | Listens to |
+|---------|----------|------------|
+| `input[type=checkbox]` | `.checked` | `change` |
+| `input[type=number\|range]` | `.valueAsNumber` | `input` |
+| `input` / `textarea` | `.value` | `input` |
+| `select` | `.value` | `change` |
+| Custom element with `.value` | `.value` | `change` |
 
 ```typescript
-const $name = atom("Ada");
-ctx.bind($name, ctx.refs.name);
-
-const $agreed = atom(false);
-ctx.bind($agreed, ctx.refs.agree);
-
-// Custom element with .value + change event
-ctx.bind($color, ctx.refs.colorPicker);
+ctx.bind($name, ctx.refs.nameInput);
+ctx.bind($agreed, ctx.refs.checkbox);
 ```
 
-**With options** — bind to any element property. `prop` defaults to the auto-detected value; `event` undefined means one-way (store → element only):
+**With options** — bind to any element property. Omit `event` for one-way (store &rarr; element):
 
 ```typescript
-// One-way: store → element property
-ctx.bind($theme, el, { prop: "theme" });
-
-// Two-way: store ↔ element via custom prop + event
-ctx.bind($val, el, { prop: "value", event: "change" });
-
-// Override native defaults (e.g. listen to "change" instead of "input")
-ctx.bind($val, input, { prop: "value", event: "change" });
+ctx.bind($theme, el, { prop: "theme" }); // one-way
+ctx.bind($val, el, { prop: "value", event: "change" }); // two-way
 ```
 
-### Events
+When binding to a custom element, `.value` (or the target property) must be defined via `withProps()`, not as a mixin return value. Props are available from the constructor, while mixin members only exist after `connectedCallback`.
 
-#### `on(target, type, listener, options?)`
+### on
 
-Attach event listeners with automatic cleanup on disconnect. Accepts a single element, an array of elements, `document`, or `window`.
+`on(target, type, listener, options?)`
+
+Attach event listeners with automatic cleanup. Accepts a single element, an array, `document`, or `window`. Event types are fully inferred for each target:
 
 ```typescript
-ctx.on(ctx.refs.trigger, "click", (e) => {
-  /* ... */
-});
-ctx.on([...ctx.refs.items], "mouseenter", (e) => {
-  /* ... */
-});
-ctx.on(document, "keydown", (e) => {
-  /* ... */
-});
+ctx.on(ctx.refs.trigger, "click", (e) => { /* ... */ });
+ctx.on([...ctx.refs.items], "mouseenter", (e) => { /* ... */ });
+ctx.on(document, "keydown", (e) => { /* ... */ });
 ```
 
-#### `emit(name, detail?, options?)` / `emit(event)`
+### emit
 
-Dispatch a bubbling `CustomEvent`, or re-dispatch an existing `Event`.
+`emit(event)` / `emit(name, detail?, options?)`
+
+Dispatch an existing `Event` or construct and dispatch a bubbling `CustomEvent`
 
 ```typescript
-ctx.emit("change", { value: 42 });
 ctx.emit(new CustomEvent("reset"));
+ctx.emit("change", { value: 42 });
 ```
 
-### DOM Queries
+### getElement
 
-Typed wrappers around `querySelector`/`querySelectorAll` that **throw when nothing matches**. Since nano-wc targets static/server-rendered markup, a missing element is always a bug — fail fast instead of silently returning `null`. Tag-name selectors narrow the return type automatically.
+`getElement(selector)` / `getElement(root, selector)`
 
-If you prefer nullable results, use `querySelector`/`querySelectorAll` directly on `ctx.host`.
-
-#### `getElement(selector)` / `getElement(root, selector)`
-
-Query a single element. Throws if not found.
+Asserts that the element exists and returns it with the correct type — no null checks, no casting. Tag-name selectors narrow the return type automatically. Throws if nothing matches.
 
 ```typescript
-const input = ctx.getElement("input"); // HTMLInputElement
-const el = ctx.getElement(fragment, ".item"); // Element
+ctx.getElement("input"); // HTMLInputElement (throws if missing)
+ctx.getElement(customParent, ".item"); // Element
+// type-only, no runtime tag check
+ctx.getElement<"input">(customRoot, ".my-input"); // HTMLInputElement
 ```
 
-#### `getElements(selector)` / `getElements(root, selector)`
+### getElements
 
-Query all matching elements. Throws if none found.
+`getElements(selector)` / `getElements(root, selector)`
+
+Works the same as [`getElement()`](api#getelement) but returns **all** matching elements as a typed `Array` (not a `NodeList`). Throws if none found.
 
 ```typescript
-const buttons = ctx.getElements("button"); // HTMLButtonElement[]
+ctx.getElements("button"); // HTMLButtonElement[]
+// type-only, no runtime tag check
+ctx.getElements<"input">(customRoot, ".field"); // HTMLInputElement[]
 ```
 
-### Misc
+Both methods are primarily useful for dynamic queries inside [`renderList()`](api#renderlist) update callbacks or other imperative code. For static element references, prefer [refs](api#withrefs).
 
-#### `onCleanup(callback)`
+For nullable results, use `ctx.host.querySelector()/querySelectorAll()` directly.
 
-Register arbitrary teardown logic to run on disconnect.
+### onCleanup
+
+`onCleanup(callback)`
+
+Register arbitrary teardown logic to run on disconnect:
 
 ```typescript
 const raf = requestAnimationFrame(tick);
 ctx.onCleanup(() => cancelAnimationFrame(raf));
 ```
 
-## Rendering
+## Context API
 
-Keyed reconciliation utilities for dynamic content. Import from the separate `nano-wc/render` entry — only pay for them when you use them.
-
-```typescript
-import { renderList, render } from "nano-wc/render";
-```
-
-### `renderList(container, template, options)`
-
-Reconcile a data array against existing DOM elements by key. Creates new elements from a template, updates existing ones, removes stale ones, and reorders as needed — without destroying/recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
-
-```html
-<x-user-list>
-  <ul data-ref="list">
-    <template data-ref="rowTpl">
-      <li><span class="name"></span></li>
-    </template>
-  </ul>
-</x-user-list>
-```
-
-```typescript
-import { renderList } from "nano-wc/render";
-
-const UserList = define("x-user-list")
-  .withRefs((r) => ({ list: r.one("ul"), rowTpl: r.one("template") }))
-  .setup((ctx) => {
-    ctx.effect($users, (users) => {
-      renderList(ctx.refs.list, ctx.refs.rowTpl, {
-        data: users,
-        key: (user) => user.id,
-        update: (el, user) => {
-          ctx.getElement(el, ".name").textContent = user.name;
-        },
-      });
-    });
-  });
-```
-
-Options:
-
-- `data` — `readonly T[]` of items to render
-- `key(item, index)` — returns a unique `string | number` key per item
-- `update(el, item)` — called on create and on subsequent renders when the item reference changes
-
-Both `render` and `renderList` **own the entire container** — any child not part of the current render cycle is removed. Containers must be dedicated to rendered content.
-
-### `render(container, template, options?)`
-
-Single-item rendering with optional data. `options` is optional — omit it for static templates (loading spinners, error states, empty placeholders).
-
-```typescript
-import { render } from "nano-wc/render";
-
-// Static template — no data needed
-render(container, loadingTpl);
-
-// Data-driven
-render(container, profileTpl, {
-  data: user,
-  update: (el, u) => {
-    el.setAttribute("name", u.name);
-  },
-});
-```
-
-Switching templates correctly replaces the previous element:
-
-```typescript
-ctx.effect($state, (state) => {
-  if (state.loading) {
-    render(container, loadingTpl);
-  } else if (state.error) {
-    render(container, errorTpl);
-  } else {
-    render(container, itemTpl, {
-      data: state.data,
-      update: (el, d) => {
-        /* ... */
-      },
-    });
-  }
-});
-```
-
-To clear: `container.replaceChildren()`.
-
-Internally delegates to `renderList` with a single-element array.
-
-## Setup Return Value (Mixin)
-
-Returning an object from `setup` assigns its members to the element instance, fully typed on the constructor:
-
-```typescript
-const Timer = define("x-timer").setup((ctx) => {
-  let id: number;
-  return {
-    start() {
-      id = setInterval(() => ctx.emit("tick"), 1000);
-    },
-    stop() {
-      clearInterval(id);
-    },
-  };
-});
-
-const el = new Timer();
-el.start(); // typed
-```
-
-## Attachments
-
-Attachments are reusable functions that receive the setup context and wire up behavior — effects, event listeners, cleanup — without creating a new component. Think of them as composable mixins for cross-cutting concerns like keyboard navigation, focus trapping, or drag handling.
-
-```typescript
-// attachRovingFocus.ts
-export function attachRovingFocus(
-  ctx: SetupContext,
-  container: HTMLElement,
-  items: HTMLElement[],
-  options: { onFocus?: (el: HTMLElement) => void } = {},
-) {
-  function setActive(index: number) {
-    items.forEach((item, i) => {
-      item.setAttribute("tabindex", i === index ? "0" : "-1");
-    });
-  }
-
-  setActive(0);
-
-  ctx.on(container, "keydown", (e) => {
-    const current = items.indexOf(document.activeElement as HTMLElement);
-    if (current === -1) return;
-    let next = -1;
-    if (e.key === "ArrowRight") next = (current + 1) % items.length;
-    if (e.key === "ArrowLeft") next = (current - 1 + items.length) % items.length;
-    if (next !== -1) {
-      e.preventDefault();
-      setActive(next);
-      items[next].focus();
-      options.onFocus?.(items[next]);
-    }
-  });
-}
-```
-
-Use it in any component's setup:
-
-```typescript
-import { attachRovingFocus } from "./attachRovingFocus";
-
-define("x-tabs")
-  .withRefs((r) => ({ tablist: r.one("div"), tabs: r.many("[role=tab]") }))
-  .setup((ctx) => {
-    attachRovingFocus(ctx, ctx.refs.tablist, ctx.refs.tabs, {
-      onFocus: (el) => activate(el.dataset.value),
-    });
-  });
-```
-
-Since attachments receive `ctx`, any listeners or effects they register are automatically cleaned up on disconnect — no manual teardown needed. They can also return values to expose state or methods to the calling component.
-
-## TypeScript
-
-### Typed events
-
-`TypedEvent<Target, Detail>` is a helper type for `CustomEvent` with typed `target` and `detail`. Combine it with `HTMLElementEventMap` augmentation to make custom events type-safe across the whole app:
-
-```typescript
-import type { TypedEvent } from "nano-wc";
-
-type TabsChangedEvent = TypedEvent<InstanceType<typeof XTabs>, { index: number }>;
-
-declare global {
-  interface HTMLElementEventMap {
-    "tabs:changed": TabsChangedEvent;
-  }
-}
-
-// emitting — inside x-tabs setup:
-ctx.emit("tabs:changed", { index: 2 });
-
-// listening — anywhere in the app:
-ctx.on(tabsEl, "tabs:changed", (e) => {
-  e.target; // XTabs instance
-  e.detail; // { index: number }
-});
-```
-
-### Augmenting HTMLElementTagNameMap
-
-Register your element for type-safe `querySelector`/`createElement`:
-
-```typescript
-declare global {
-  interface HTMLElementTagNameMap {
-    "x-my-el": InstanceType<typeof MyEl>;
-  }
-}
-
-const MyEl = define("x-my-el").withProps(/* ... */).setup(/* ... */);
-```
-
-## Component Communication
-
-Data flows **top-down through props** — a parent sets attributes or properties on its children, and each child reacts via its own prop stores. This is the primary communication channel and covers most cases.
-
-For **child → parent** notifications, dispatch custom events with `ctx.emit`. The parent listens via `ctx.on`. This is the standard DOM approach — no extra imports needed.
-
-When a child needs **access to parent state or API** (not just fire-and-forget events), use the **context protocol** (`nano-wc/context`). A parent calls `provide()` to expose a value; descendants call `consume()` to receive it. Context lives in a separate entry point because it's opt-in — most components don't need it.
-
-For **sibling or unrelated** components, share a nanostore directly — import the same atom in both components and react to changes via `ctx.effect`.
-
-| Direction | Mechanism |
-|-----------|-----------|
-| Parent → Child | Props (attributes / properties) |
-| Child → Parent (fire-and-forget) | Custom events (`ctx.emit` / `ctx.on`) |
-| Child → Parent (shared state / API) | Context protocol (`nano-wc/context`) |
-| Siblings / unrelated | Shared nanostores |
-
-## Lifecycle
-
-1. **Constructor** — reactive prop stores created, getters/setters defined (attribute-backed props read their initial value; JSON props start as `undefined`)
-2. **connectedCallback** — all props hydrated (each prop's `get` is called → parsed through schema → atom set), descendants upgraded, `setup` runs
-3. **attributeChangedCallback** — attribute change validated and pushed to prop store (attribute-backed props only)
-4. **disconnectedCallback** — cache cleared, all cleanups run (listeners, effects, bindings)
-
-Re-connecting a component runs `setup` again with a fresh cache and new cleanup scope.
-
-## Context Protocol
-
-Cross-component communication for parent-child relationships. Import from the separate `nano-wc/context` entry point.
+Cross-component communication for parent-child relationships. Import from the separate `nano-wc/context` entry point (~0.4 KB).
 
 ```typescript
 import { createContext } from "nano-wc/context";
 ```
 
-### `createContext<T>(name?)`
+For a conceptual overview, see the [Context API guide](guides#context-api).
 
-Creates a typed context key with `provide` and `consume` methods. The optional `name` is used for debug warnings.
+### createContext
+
+`createContext<T>(name?)`
+
+Creates a typed context key with `provide()` and `consume()` methods. The optional `name` is used as the `Symbol` description for debugging.
 
 ```typescript
-type TabsAPI = { register: (el: Element) => void; $active: WritableAtom<string> };
+type TabsAPI = {
+  register: (el: Element) => void;
+  $active: WritableAtom<string>;
+};
+
 const tabsContext = createContext<TabsAPI>("tabs");
 ```
 
-### `contextKey.provide(ctx, value)`
+### context.provide
+
+`contextKey.provide(ctx, value)`
 
 Registers the component as a context provider. Any descendant that consumes this context key will receive `value`.
+
+The `ctx` parameter requires `host` (HTMLElement) and `onCleanup` — the setup context satisfies this. The provider's event listener is auto-cleaned on disconnect.
 
 ```typescript
 define("x-tabs").setup((ctx) => {
@@ -632,9 +411,13 @@ define("x-tabs").setup((ctx) => {
 });
 ```
 
-### `contextKey.consume(ctx, callback)`
+On connect, `provide()` also dispatches a `context-provider` event to resolve any pending consumers that connected before the provider.
 
-Requests the context value from the nearest ancestor provider. The callback receives the provided value. Use for dynamic or conditional context access.
+### context.consume
+
+`contextKey.consume(ctx, callback)`
+
+Requests the context value from the nearest ancestor provider. The callback receives the provided value.
 
 ```typescript
 define("x-tab").setup((ctx) => {
@@ -645,27 +428,84 @@ define("x-tab").setup((ctx) => {
 });
 ```
 
-### `withContexts` builder method
+If a provider is already connected, the callback fires synchronously. If not, the request is queued and resolved when the provider calls `provide()`. Pending requests are cleaned up on disconnect.
 
-Declares required contexts on the builder. Setup is deferred until all contexts resolve — no callback nesting needed:
+## Rendering
+
+Keyed reconciliation utilities for dynamic content. Import from the separate `nano-wc/render` entry point (~0.4 KB).
 
 ```typescript
-import { createContext } from "nano-wc/context";
-
-const tabsCtx = createContext<TabsAPI>("tabs");
-
-define("x-tab")
-  .withContexts({ tabs: tabsCtx })
-  .setup((ctx) => {
-    ctx.contexts.tabs.register(ctx.host);
-    ctx.effect(ctx.contexts.tabs.$active, (active) => { /* ... */ });
-  });
+import { render, renderList } from "nano-wc/render";
 ```
 
-If a context never resolves (no provider in the tree), setup never runs — debug via devtools.
+Both `render()` and `renderList()` **own the entire container** — any child not part of the current render cycle is removed. Containers must be dedicated to rendered content.
 
-### How it works
+### render
 
-- **Normal case** (parent connects first): `provide()` registers a `context-request` event listener on the host. `consume()` dispatches a `context-request` event that bubbles up. The provider catches it, and the callback runs synchronously.
-- **Late provider** (child upgrades before parent): The `consume()` dispatch goes unhandled. A lazy document-level handler stores the pending request. When the parent's `provide()` runs later, it dispatches a `context-provider` event. The document handler re-dispatches `context-request` from pending consumers, resolving them.
-- Uses the [Community Context Protocol](https://github.com/webcomponents-cg/community-protocols/blob/main/proposals/context.md) (`context-request` / `context-provider` events)
+`render(container, template, options?)`
+
+Single-item rendering. Options are optional — omit for static templates (loading spinners, error states, empty placeholders):
+
+```typescript
+render(container, loadingTpl); // static
+render(container, profileTpl, { // data-driven
+  data: user,
+  update: (el, u) => { el.setAttribute("name", u.name); },
+});
+```
+
+Switching templates replaces the previous element.
+Internally delegates to `renderList()` with a single-element array.
+
+### renderList
+
+`renderList(container, template, options)`
+
+Reconcile a data array against DOM by key. Creates, updates, removes, and reorders elements — without recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
+
+```html
+<ul data-ref="list">
+  <template data-ref="rowTpl">
+    <li><span class="name"></span></li>
+  </template>
+</ul>
+```
+
+```typescript
+ctx.effect($users, (users) => {
+  renderList(ctx.refs.list, ctx.refs.rowTpl, {
+    data: users,
+    key: (user) => user.id,
+    update: (el, user) => {
+      ctx.getElement(el, ".name").textContent = user.name;
+    },
+  });
+});
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `data` | `readonly T[]` | Array of items to render |
+| `key` | `(item: T, index: number) => string \| number` | Unique key per item |
+| `update` | `(el: Element, item: T) => void` | Called on create and when the item reference changes |
+
+## TypeScript
+
+### TypedEvent
+
+`TypedEvent<Target, Detail>`
+
+A type-only helper that narrows `CustomEvent` to a specific `target` and `detail`. Useful for defining type-safe custom events:
+
+```typescript
+import type { TypedEvent } from "nano-wc";
+
+type TabsChangedEvent = TypedEvent<
+  InstanceType<typeof XTabs>,
+  { index: number }
+>;
+```
+
+Combine with `HTMLElementEventMap` augmentation for app-wide type safety — see [Typed custom events](recipes#typed-custom-events) and [Augmenting HTMLElementTagNameMap](recipes#augmenting-htmlelementtagnamemap) recipes.
