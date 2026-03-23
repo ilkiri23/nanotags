@@ -18,7 +18,11 @@ export async function getStaticPaths() {
       props: {
         doc,
         prev: prev ? { title: prev.data.title, href: getHref(prev.id === "index" ? "" : prev.id) } : undefined,
-        next: next ? { title: next.data.title, href: getHref(next.id === "index" ? "" : next.id) } : undefined,
+        next: next
+          ? { title: next.data.title, href: getHref(next.id === "index" ? "" : next.id) }
+          : i === docs.length - 1
+            ? { title: "Examples", href: getHref("examples") }
+            : undefined,
       },
     };
   });
