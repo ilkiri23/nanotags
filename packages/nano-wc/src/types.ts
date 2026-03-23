@@ -16,8 +16,8 @@ export type FullPropDef<T = unknown> = Required<Pick<PropDef<T>, "schema" | "get
 export type PropEntry = AnySchema | PropDef;
 export type PropsSchema = Record<string, PropEntry>;
 
-// If the entry has a `schema` key it's a PropDef — reject unknown keys.
-// Otherwise it's a plain Standard Schema — pass through.
+// If the entry has a `schema` key it's a PropDef, reject unknown keys.
+// Otherwise it's a plain Standard Schema, pass through.
 export type StrictPropEntry<T> = "schema" extends keyof T
   ? Pick<T, Extract<keyof T, keyof PropDef>> & Record<Exclude<keyof T, keyof PropDef>, never>
   : T;

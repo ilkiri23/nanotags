@@ -6,7 +6,7 @@ order: 3
 
 ## Builder API
 
-`define(name)` returns a `ComponentBuilder` with a fluent, immutable chain. Each step returns a new builder instance, accumulating type information along the way:
+The fluent builder creates components through an immutable chain. Each step returns a new builder instance, accumulating type information:
 
 ```typescript
 define("x-my-comp") // ComponentBuilder (entry point)
@@ -15,9 +15,13 @@ define("x-my-comp") // ComponentBuilder (entry point)
   .setup((ctx) => { ... }); // terminates chain, registers element
 ```
 
-`withProps()`, `withRefs()`, and `withContexts()` are optional and can appear in any order. `setup()` ends the chain — it calls `customElements.define` under the hood and returns a typed constructor.
+`withProps()`, `withRefs()`, and `withContexts()` are optional and can appear in any order. `setup()` ends the chain: it calls `customElements.define` under the hood and returns a typed constructor.
 
-For simple components, pass setup directly as the second argument:
+### define
+
+`define(name)` / `define(name, setup)`
+
+Entry point for creating a component. Returns a `ComponentBuilder` when called with just a name. For simple components, pass setup directly as the second argument:
 
 ```typescript
 const Logger = define("x-logger", (ctx) => {
@@ -79,9 +83,9 @@ import * as v from "valibot";
 
 JSON props differ from attribute-backed props:
 
-- **Not observed** — not in `observedAttributes`, no `attributeChangedCallback`
-- **Setter writes to atom directly** — no attribute created in the DOM
-- **Hydrated once on connect** — reads from a `<script type="application/json">` tag, falls back to a kebab-case attribute
+- **Not observed**: not in `observedAttributes`, no `attributeChangedCallback`
+- **Setter writes to atom directly**: no attribute created in the DOM
+- **Hydrated once on connect**: reads from a `<script type="application/json">` tag, falls back to a kebab-case attribute
 
 ```html
 <!-- preferred: script tag (no escaping needed) -->
@@ -103,7 +107,7 @@ el.items = [{ id: 3, name: "Charlie" }]; // updates atom, no DOM attribute
 
 #### Property-only props
 
-Set `attribute: false` to create a prop that exists only as a JS property and a Nano Stores atom — no HTML attribute. Defined in the **constructor**, available immediately after `document.createElement()`:
+Set `attribute: false` to create a prop that exists only as a JS property and a Nano Stores atom, not an HTML attribute. Defined in the **constructor**, available immediately after `document.createElement()`:
 
 ```typescript
 .withProps((p) => ({
@@ -114,9 +118,9 @@ Set `attribute: false` to create a prop that exists only as a JS property and a 
 
 This is useful when:
 
-- The value is large or complex (editor content, serialized state) — writing kilobytes to a DOM attribute is wasteful
+- The value is large or complex (editor content, serialized state): writing kilobytes to a DOM attribute is wasteful
 - A component wraps an imperative resource (CodeMirror, canvas) and exposes its state as `.value`
-- A parent uses `ctx.bind()` on a child — `bind()` needs the `.value` property to exist from construction time, before setup runs
+- A parent uses `ctx.bind()` on a child: `bind()` needs the `.value` property to exist from construction time, before setup runs
 
 The full `PropDef` shape:
 
@@ -136,8 +140,8 @@ Declare typed element references. Refs query the component's own DOM, skipping e
 
 ```typescript
 .withRefs((r) => ({
-  trigger: r.one("button"), // HTMLButtonElement — validated
-  items:   r.many("li"), // HTMLLIElement[] — validated
+  trigger: r.one("button"), // HTMLButtonElement, validated
+  items:   r.many("li"), // HTMLLIElement[], validated
 }))
 ```
 
@@ -153,7 +157,7 @@ By default, refs match `[data-ref="name"]`. Non-tag strings (containing `.`, `#`
 
 #### Ref ownership
 
-By default, a component **owns** only its direct refs — elements inside nested custom elements are skipped for proper encapsulation:
+By default, a component **owns** only its direct refs: elements inside nested custom elements are skipped for proper encapsulation:
 
 ```html
 <x-parent>
@@ -164,7 +168,7 @@ By default, a component **owns** only its direct refs — elements inside nested
 </x-parent>
 ```
 
-With **slot-based composition** (e.g. Astro components passed into structural wrappers), refs may end up inside other custom elements even though they conceptually belong to the outer component. To claim ownership, prefix the ref with the component's tag name — `<custom-element>:<ref-name>`:
+With **slot-based composition** (e.g. Astro components passed into structural wrappers), refs may end up inside other custom elements even though they conceptually belong to the outer component. To claim ownership, prefix the ref with the component's tag name, `<custom-element>:<ref-name>`:
 
 ```html
 <x-code-example>
@@ -174,7 +178,7 @@ With **slot-based composition** (e.g. Astro components passed into structural wr
 </x-code-example>
 ```
 
-The JS definition stays the same — each ref automatically checks both `[data-ref="name"]` (direct ownership) and `[data-ref="x-component:name"]` (explicit ownership). You can mix both in the same component.
+The JS definition stays the same: each ref automatically checks both `[data-ref="name"]` (direct ownership) and `[data-ref="x-component:name"]` (explicit ownership). You can mix both in the same component.
 
 ### withContexts
 
@@ -192,7 +196,7 @@ define("x-tab")
   });
 ```
 
-If a context never resolves (no provider ancestor), setup never runs. For dynamic or conditional access, use `consume()` directly — see the [Context API guide](guides#context-api).
+If a context never resolves (no provider ancestor), setup never runs. For dynamic or conditional access, use `consume()` directly. See the [Context API guide](guides#context-api).
 
 
 ### setup
@@ -278,9 +282,9 @@ ctx.effect([storeA, storeB], (a, b) => {
 
 `bind(store, element, options?)`
 
-Two-way binds a DOM control to a Nano Stores atom. The store is the source of truth — the control is set from the store on bind.
+Two-way binds a DOM control to a Nano Stores atom. The store is the source of truth: the control is set from the store on bind.
 
-**No options** — auto-detects control type:
+**No options**. Auto-detects control type:
 
 | Control | Property | Listens to |
 |---------|----------|------------|
@@ -295,7 +299,7 @@ ctx.bind($name, ctx.refs.nameInput);
 ctx.bind($agreed, ctx.refs.checkbox);
 ```
 
-**With options** — bind to any element property. Omit `event` for one-way (store &rarr; element):
+**With options**. Bind to any element property. Omit `event` for one-way (store &rarr; element):
 
 ```typescript
 ctx.bind($theme, el, { prop: "theme" }); // one-way
@@ -331,7 +335,7 @@ ctx.emit("change", { value: 42 });
 
 `getElement(selector)` / `getElement(root, selector)`
 
-Asserts that the element exists and returns it with the correct type — no null checks, no casting. Tag-name selectors narrow the return type automatically. Throws if nothing matches.
+Asserts that the element exists and returns it with the correct type, no null checks or casting. Tag-name selectors narrow the return type automatically. Throws if nothing matches.
 
 ```typescript
 ctx.getElement("input"); // HTMLInputElement (throws if missing)
@@ -398,7 +402,7 @@ const tabsContext = createContext<TabsAPI>("tabs");
 
 Registers the component as a context provider. Any descendant that consumes this context key will receive `value`.
 
-The `ctx` parameter requires `host` (HTMLElement) and `onCleanup` — the setup context satisfies this. The provider's event listener is auto-cleaned on disconnect.
+The `ctx` parameter requires `host` (HTMLElement) and `onCleanup`; the setup context satisfies this. The provider's event listener is auto-cleaned on disconnect.
 
 ```typescript
 define("x-tabs").setup((ctx) => {
@@ -437,13 +441,13 @@ Keyed reconciliation utilities for dynamic content. Import from the separate `na
 import { render, renderList } from "nano-wc/render";
 ```
 
-Both `render()` and `renderList()` **own the entire container** — any child not part of the current render cycle is removed. Containers must be dedicated to rendered content.
+Both `render()` and `renderList()` **own the entire container**: any child not part of the current render cycle is removed. Containers must be dedicated to rendered content.
 
 ### render
 
 `render(container, template, options?)`
 
-Single-item rendering. Options are optional — omit for static templates (loading spinners, error states, empty placeholders):
+Single-item rendering. Options are optional. Omit for static templates (loading spinners, error states, empty placeholders):
 
 ```typescript
 render(container, loadingTpl); // static
@@ -460,7 +464,7 @@ Internally delegates to `renderList()` with a single-element array.
 
 `renderList(container, template, options)`
 
-Reconcile a data array against DOM by key. Creates, updates, removes, and reorders elements — without recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
+Reconcile a data array against DOM by key. Creates, updates, removes, and reorders elements without recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
 
 ```html
 <ul data-ref="list">
@@ -507,4 +511,4 @@ type TabsChangedEvent = TypedEvent<
 >;
 ```
 
-Combine with `HTMLElementEventMap` augmentation for app-wide type safety — see [Typed custom events](recipes#typed-custom-events) and [Augmenting HTMLElementTagNameMap](recipes#augmenting-htmlelementtagnamemap) recipes.
+Combine with `HTMLElementEventMap` augmentation for app-wide type safety. See [Typed custom events](recipes#typed-custom-events) and [Augmenting HTMLElementTagNameMap](recipes#augmenting-htmlelementtagnamemap) recipes.

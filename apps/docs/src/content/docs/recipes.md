@@ -48,10 +48,10 @@ declare global {
   }
 }
 
-// Emit — inside x-listbox setup:
+// Emit (inside x-listbox setup):
 ctx.emit("listbox:change", { selected: ["a", "b"] });
 
-// Listen — anywhere in the app:
+// Listen (anywhere in the app):
 ctx.on(listboxEl, "listbox:change", (e) => {
   e.target; // XListBox instance
   e.detail.selected; // string[]
@@ -86,15 +86,15 @@ const XTabs = define("x-tabs")
 
 ## Attachments
 
-Attachments are reusable functions that receive the setup context (`ctx`) and wire up behavior — effects, event listeners, cleanup — without creating a new component.
+Attachments are reusable functions that receive the setup context (`ctx`) and wire up behavior—effects, event listeners, cleanup—without creating a new component.
 
-Unlike regular helper functions, attachments are **lifecycle-aware**: because they receive `ctx`, everything they register via [`ctx.on()`](api#on), [`ctx.effect()`](api#effect), or [`ctx.onCleanup()`](api#oncleanup) is automatically cleaned up when the host component disconnects. A plain helper that calls `addEventListener` would leak listeners — an attachment never does.
+Unlike regular helper functions, attachments are **lifecycle-aware**: because they receive `ctx`, everything they register via [`ctx.on()`](api#on), [`ctx.effect()`](api#effect), or [`ctx.onCleanup()`](api#oncleanup) is automatically cleaned up when the host component disconnects. A plain helper that calls `addEventListener` would leak listeners; an attachment never does.
 
-Attachments also compose naturally with the [context protocol](guides#context-api). An attachment can call [`consume()`](api#contextconsume) to access ancestor state, or accept a context value as a parameter — letting you build reusable behaviors (keyboard navigation, drag handling, focus traps) that participate in the component tree without being components themselves.
+Attachments also compose naturally with the [context protocol](guides#context-api). An attachment can call [`consume()`](api#contextconsume) to access ancestor state, or accept a context value as a parameter, letting you build reusable behaviors (keyboard navigation, drag handling, focus traps) that participate in the component tree without being components themselves.
 
 ### Writing your own
 
-An attachment is just a function — no special API needed. Follow these conventions:
+An attachment is just a function, no special API needed. Follow these conventions:
 
 1. Accept `ctx: SetupContext` as the first parameter
 2. Use [`ctx.on()`](api#on), [`ctx.effect()`](api#effect), [`ctx.onCleanup()`](api#oncleanup) for auto-cleanup

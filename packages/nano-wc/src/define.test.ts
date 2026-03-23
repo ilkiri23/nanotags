@@ -141,7 +141,7 @@ describe("define", () => {
     it("rejects unknown PropDef keys", () => {
       const tag = uniqueTag("strict");
       define(tag)
-        // @ts-expect-error — "sync" is not a valid PropDef key
+        // @ts-expect-error "sync" is not a valid PropDef key
         .withProps((p) => ({ value: { schema: p.string(""), sync: true } }))
         .setup(() => {});
     });
@@ -152,7 +152,7 @@ describe("define", () => {
         .withProps((p) => ({
           value: {
             schema: p.string(""),
-            // @ts-expect-error — "~standard" is not a valid PropDef key
+            // @ts-expect-error "~standard" is not a valid PropDef key
             "~standard": { version: 1, vendor: "", validate: () => ({}) },
           },
         }))

@@ -66,7 +66,7 @@ export function parseWithSchema<S extends AnySchema>(
   }
   if (result.issues) {
     throw new TypeError(
-      `${context}: invalid value ${JSON.stringify(value)} — ${result.issues.map((i) => i.message).join(", ")}`,
+      `${context}: invalid value ${JSON.stringify(value)}: ${result.issues.map((i) => i.message).join(", ")}`,
     );
   }
   return result.value as Infer<S>;

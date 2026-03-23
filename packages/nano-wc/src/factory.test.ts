@@ -27,7 +27,7 @@ describe("parseWithSchema", () => {
   });
 });
 
-describe("createReactiveProps — reserved name guard", () => {
+describe("createReactiveProps: reserved name guard", () => {
   it("throws when prop name conflicts with a prototype method", () => {
     const div = document.createElement("div");
     expect(() => createReactiveProps(div, { getAttribute: propBuilders.string() })).toThrow(
@@ -113,7 +113,7 @@ describe("createReactiveProps", () => {
   });
 });
 
-describe("createReactiveProps — pre-upgrade properties", () => {
+describe("createReactiveProps: pre-upgrade properties", () => {
   it("captures pre-upgrade attribute-backed prop and sets store", () => {
     const div = document.createElement("div") as unknown as HTMLElement & { active: boolean };
     (div as any).active = true;
@@ -155,7 +155,7 @@ describe("createReactiveProps — pre-upgrade properties", () => {
   });
 });
 
-describe("createReactiveProps — json props", () => {
+describe("createReactiveProps: json props", () => {
   const numArraySchema = v.array(v.number());
   const objSchema = v.object({ a: v.number() });
 
@@ -279,7 +279,7 @@ describe("createReactiveProps — json props", () => {
   });
 });
 
-describe("createComponent — json props", () => {
+describe("createComponent: json props", () => {
   it("excludes json props from observedAttributes", () => {
     const tag = uniqueTag("json-obs");
     const Component = createComponent(

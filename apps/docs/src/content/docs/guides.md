@@ -13,7 +13,7 @@ Parents pass data down through props. Children notify parents via custom events 
 The primary channel. A parent sets attributes or properties on its children, and each child reacts via its own prop stores:
 
 ```typescript
-// Parent sets attribute — child's $mode atom updates automatically
+// Parent sets attribute, child's $mode atom updates automatically
 childEl.setAttribute("mode", "dark");
 
 // Or via property
@@ -125,7 +125,7 @@ nano-wc builds on the standard Custom Elements lifecycle with a thin reactive la
 
 Reactive prop stores are created and getter/setter descriptors are defined on the element instance. Attribute-backed props read their initial value from the DOM; JSON and property-only props start as `undefined`.
 
-The element is usable as a JS object at this point — you can set properties, read `.tagName`, etc. — but it is not connected to the DOM and [`setup()`](api#setup) has not run.
+The element is usable as a JS object at this point—you can set properties, read `.tagName`, etc.—but it is not connected to the DOM and [`setup()`](api#setup) has not run.
 
 ### 2. connectedCallback
 
@@ -135,7 +135,7 @@ If [`withContexts()`](api#withcontexts) was used, setup is deferred until all de
 
 ### 3. attributeChangedCallback
 
-Fires when an observed attribute changes. The new value is validated through the prop's schema and pushed to the corresponding atom. Only attribute-backed props trigger this — JSON and property-only props are not observed.
+Fires when an observed attribute changes. The new value is validated through the prop's schema and pushed to the corresponding atom. Only attribute-backed props trigger this; JSON and property-only props are not observed.
 
 ### 4. disconnectedCallback
 
@@ -167,7 +167,7 @@ The Context API enables cross-component communication for parent-child relations
 
 ### When to use context
 
-Use context when a child component needs **ongoing access to parent state or API** — not just a one-time value (use props) or a fire-and-forget notification (use events).
+Use context when a child component needs **ongoing access to parent state or API**, not just a one-time value (use props) or a fire-and-forget notification (use events).
 
 ### How it works
 
@@ -180,7 +180,7 @@ The protocol uses two DOM events following the [Web Components Community Context
 4. The callback runs synchronously
 
 **Late provider** (child upgrades before parent):
-1. The `consume()` dispatch goes unhandled — no provider is listening yet
+1. The `consume()` dispatch goes unhandled: no provider is listening yet
 2. A lazy document-level handler stores the pending request
 3. When the parent's `provide()` runs, it dispatches a `context-provider` event
 4. The document handler re-dispatches `context-request` from pending consumers, resolving them
@@ -189,9 +189,9 @@ This means context works regardless of element upgrade order.
 
 ### provide vs consume vs withContexts
 
-There are two ways to consume context. Prefer `withContexts()` — use `consume()` only when the context is optional.
+There are two ways to consume context. Prefer `withContexts()`; use `consume()` only when the context is optional.
 
-**[`withContexts()`](api#withcontexts) (declarative, preferred)** — declares required contexts on the builder. Setup is deferred until **all** contexts resolve:
+**[`withContexts()`](api#withcontexts) (declarative, preferred)**: declares required contexts on the builder. Setup is deferred until **all** contexts resolve:
 
 ```typescript
 define("x-tab")
@@ -204,7 +204,7 @@ define("x-tab")
 
 Use when: the component **cannot function** without the context value. If a provider never appears, setup never runs and the element stays inert.
 
-**[`consume()`](api#contextconsume) (imperative)** — requests context inside setup. The callback runs when/if the context resolves:
+**[`consume()`](api#contextconsume) (imperative)**: requests context inside setup. The callback runs when/if the context resolves:
 
 ```typescript
 define("x-widget").setup((ctx) => {
@@ -215,6 +215,6 @@ define("x-widget").setup((ctx) => {
 });
 ```
 
-Use when: the context is **optional** — the component should still function without it, or you need to handle the "no provider" case yourself.
+Use when: the context is **optional**; the component should still function without it, or you need to handle the "no provider" case yourself.
 
-Context consumers registered via `consume()` are automatically cleaned up on disconnect — pending requests are removed from the document-level queue. Providers remove their `context-request` listener on disconnect.
+Context consumers registered via `consume()` are automatically cleaned up on disconnect: pending requests are removed from the document-level queue. Providers remove their `context-request` listener on disconnect.

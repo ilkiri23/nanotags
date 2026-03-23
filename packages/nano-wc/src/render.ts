@@ -51,7 +51,7 @@ export function renderList<T, E extends Element = Element>(
       elementData.set(el, item);
     }
 
-    // Position with minimum DOM moves: if el is already right after prev or first child when prev is null — skip; otherwise move it there.
+    // Position with minimum DOM moves: if el is already right after prev or first child when prev is null, skip; otherwise move it there.
     // Example: [A, B, C, D, E] → [C, D, B, E, A]
     //   i=0, C: expected=firstChild(A), C≠A → prepend C     → [C,A,B,D,E], prev=C
     //   i=1, D: expected=C.next(A),     D≠A → C.after(D)    → [C,D,A,B,E], prev=D

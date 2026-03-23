@@ -569,7 +569,7 @@ describe("bind", () => {
     expect(child.value).toBe("updated");
   });
 
-  it("one-way bind with { prop } — store→el, no event listener", () => {
+  it("one-way bind with { prop }: store→el, no event listener", () => {
     const tag = uniqueTag("bind");
     const $theme = atom("dark");
     define(tag, (ctx) => {
@@ -579,13 +579,13 @@ describe("bind", () => {
     expect(el.title).toBe("dark");
     $theme.set("light");
     expect(el.title).toBe("light");
-    // No event listener — changing title and dispatching change shouldn't update store
+    // No event listener, changing title and dispatching change shouldn't update store
     el.title = "manual";
     el.dispatchEvent(new Event("change", { bubbles: true }));
     expect($theme.get()).toBe("light");
   });
 
-  it("two-way bind with { prop, event } — custom element", () => {
+  it("two-way bind with { prop, event }: custom element", () => {
     const controlTag = uniqueTag("ctrl");
     define(controlTag)
       .withProps((p) => ({ theme: p.string("default") }))

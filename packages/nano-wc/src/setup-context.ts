@@ -194,7 +194,7 @@ export class Context<
 
   /**
    * Binds a writable atom to a DOM element property.
-   * Store is the source of truth — element is set from the store on bind.
+   * Store is the source of truth: element is set from the store on bind.
    *
    * No options → full auto-detect (native controls + custom `.value`/`change`), two-way.
    * Options present → `prop` defaults to auto-detected, `event` undefined = one-way.

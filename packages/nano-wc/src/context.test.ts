@@ -159,11 +159,11 @@ describe("late provider", () => {
       });
     });
 
-    // Mount with parent undefined — child connects, parent stays as unknown element
+    // Mount with parent undefined, child connects, parent stays as unknown element
     document.body.innerHTML = `<${parentTag}><${childTag}></${childTag}></${parentTag}>`;
     expect(received).toBeUndefined();
 
-    // Now define parent — triggers upgrade + provide
+    // Now define parent, triggers upgrade + provide
     createComponent(parentTag, {}, {}, (setupCtx) => {
       ctx.provide(setupCtx, "late-value");
     });
@@ -190,7 +190,7 @@ describe("late provider", () => {
     // Remove child before provider connects
     document.body.querySelector(childTag)!.remove();
 
-    // Now define parent — child is disconnected, callback should not fire
+    // Now define parent, child is disconnected, callback should not fire
     createComponent(parentTag, {}, {}, (setupCtx) => {
       ctx.provide(setupCtx, "too-late");
     });
@@ -306,7 +306,7 @@ describe("withContexts", () => {
     expect(r2).toBe(42);
   });
 
-  it("disconnected before resolve — setup never runs", () => {
+  it("disconnected before resolve, setup never runs", () => {
     const parentTag = uniqueTag("wc-disc-prov");
     const childTag = uniqueTag("wc-disc-cons");
 
@@ -356,7 +356,7 @@ describe("withContexts", () => {
     expect(calls).toEqual(["value", "value"]);
   });
 
-  it("empty contexts — setup runs immediately", () => {
+  it("empty contexts, setup runs immediately", () => {
     const tag = uniqueTag("wc-empty");
     const setup = vi.fn();
 

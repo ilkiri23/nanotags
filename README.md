@@ -6,15 +6,15 @@
 [![npm version](https://img.shields.io/npm/v/nano-wc.svg)](https://www.npmjs.com/package/nano-wc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-A thin Web Components wrapper powered by [Nano Stores](https://github.com/nanostores/nanostores) reactivity. It leans on the platform — Custom Elements, standard DOM, regular CSS — instead of reinventing them. The result is a typed, reactive component model with automatic cleanup in under 2.5 KB.
+A thin Web Components wrapper powered by [Nano Stores](https://github.com/nanostores/nanostores) reactivity. It leans on the platform—Custom Elements, standard DOM, regular CSS—instead of reinventing them. The result is a typed, reactive component model with automatic cleanup in under 2.5 KB.
 
-- **No Shadow DOM** — markup stays in the regular DOM, styled with normal CSS
-- **Reactive props** via Nano Stores atoms — subscribe when you need updates, `.get()` when you don't
-- **Typed fluent builder** — props, refs, and contexts are fully inferred through the chain
-- **Automatic cleanup** — event listeners, store subscriptions, and bindings are removed on disconnect
-- **Tree-shakeable** — `nano-wc/render` and `nano-wc/context` are separate entry points
-- **Standard Schema** — built-in validators plus any [Standard Schema](https://github.com/standard-schema/standard-schema)&#8209;compatible library (Valibot, Zod, ArkType)
-- **Hydration-first** — built for statically rendered markup. Pair with [Astro](https://astro.build/), server-rendered HTML, or any static-first setup to hydrate lightweight interactive islands
+- **No Shadow DOM**: markup stays in the regular DOM, styled with normal CSS
+- **Reactive props** via Nano Stores atoms: subscribe when you need updates, `.get()` when you don't
+- **Typed fluent builder**: props, refs, and contexts are fully inferred through the chain
+- **Automatic cleanup**: event listeners, store subscriptions, and bindings are removed on disconnect
+- **Tree-shakeable**: `nano-wc/render` and `nano-wc/context` are separate entry points
+- **Standard Schema**: built-in validators plus any [Standard Schema](https://github.com/standard-schema/standard-schema)&#8209;compatible library (Valibot, Zod, ArkType)
+- **Hydration-first**: built for statically rendered markup. Pair with [Astro](https://astro.build/), server-rendered HTML, or any static-first setup to hydrate lightweight interactive islands
 
 ```html
 <x-hello></x-hello>
@@ -106,7 +106,7 @@ define("x-my-comp")                  // ComponentBuilder (entry point)
   .setup((ctx) => { ... });          // terminates chain, registers element
 ```
 
-`withProps`, `withRefs`, and `withContexts` are optional and can appear in any order. `setup` ends the chain — it calls `customElements.define` under the hood and returns a typed constructor.
+`withProps`, `withRefs`, and `withContexts` are optional and can appear in any order. `setup` ends the chain: it calls `customElements.define` under the hood and returns a typed constructor.
 
 For simple components, pass setup directly as the second argument:
 
@@ -182,7 +182,7 @@ el.items = [{ id: 3, name: "Charlie" }]; // updates atom, no DOM attribute
 
 #### Property-only Props
 
-Set `attribute: false` to create a prop that lives only as a JS property and a Nano Stores atom — no HTML attribute. Defined on the element in the **constructor**, available immediately after `document.createElement()`:
+Set `attribute: false` to create a prop that lives only as a JS property and a Nano Stores atom, not an HTML attribute. Defined on the element in the **constructor**, available immediately after `document.createElement()`:
 
 ```typescript
 .withProps((p) => ({
@@ -199,8 +199,8 @@ Declare typed element references via `withRefs`. Refs query the component's own 
 
 ```typescript
 .withRefs((r) => ({
-  trigger: r.one("button"),   // HTMLButtonElement — validated
-  items:   r.many("li"),      // HTMLLIElement[]   — validated
+  trigger: r.one("button"),   // HTMLButtonElement, validated
+  items:   r.many("li"),      // HTMLLIElement[], validated
 }))
 ```
 
@@ -216,7 +216,7 @@ By default, refs match `[data-ref="name"]`. Non-tag strings (containing `.`, `#`
 
 #### Ref Scoping and Owned Refs
 
-Refs are **scoped** — elements inside nested custom elements are skipped. This keeps components independent.
+Refs are **scoped**: elements inside nested custom elements are skipped. This keeps components independent.
 
 For **slot-based composition** (e.g. Astro components passed into structural wrappers), prefix `data-ref` with the owning component's tag name to collect refs deeply:
 
@@ -228,7 +228,7 @@ For **slot-based composition** (e.g. Astro components passed into structural wra
 </x-code-example>
 ```
 
-The JS definition stays the same — each ref automatically checks both `[data-ref="name"]` (shallow) and `[data-ref="x-component:name"]` (deep). You can mix owned and unowned refs freely.
+The JS definition stays the same: each ref automatically checks both `[data-ref="name"]` (shallow) and `[data-ref="x-component:name"]` (deep). You can mix owned and unowned refs freely.
 
 ### Setup Return Value (Mixin)
 
@@ -253,10 +253,10 @@ The `setup` function receives a context object (`ctx`) with the following proper
 
 **Properties:**
 
-- `ctx.host` — the component's `HTMLElement`
-- `ctx.props` — reactive prop stores, each prefixed with `$` (e.g. `ctx.props.$count`)
-- `ctx.refs` — resolved element references
-- `ctx.contexts` — resolved context values (when using `withContexts`)
+- `ctx.host`: the component's `HTMLElement`
+- `ctx.props`: reactive prop stores, each prefixed with `$` (e.g. `ctx.props.$count`)
+- `ctx.refs`: resolved element references
+- `ctx.contexts`: resolved context values (when using `withContexts`)
 
 ### Reactivity
 
@@ -276,7 +276,7 @@ ctx.effect([storeA, storeB], (a, b) => { /* ... */ });
 
 Two-way binds a DOM control to a Nano Stores atom. The store is the source of truth.
 
-**No options** — auto-detects control type:
+**No options**. Auto-detects control type:
 
 | Control | Property | Listens to |
 |---------|----------|------------|
@@ -291,14 +291,14 @@ ctx.bind($name, ctx.refs.nameInput);
 ctx.bind($agreed, ctx.refs.checkbox);
 ```
 
-**With options** — bind to any element property. Omit `event` for one-way (store &rarr; element):
+**With options**. Bind to any element property. Omit `event` for one-way (store &rarr; element):
 
 ```typescript
 ctx.bind($theme, el, { prop: "theme" });                  // one-way
 ctx.bind($val, el, { prop: "value", event: "change" });   // two-way
 ```
 
-> **Note:** When binding to a custom element, `.value` (or the target property) must be defined via `withProps`, not as a mixin return value. Props are available from the constructor, while mixin members only exist after `connectedCallback` — `bind` needs the property to be there immediately.
+> **Note:** When binding to a custom element, `.value` (or the target property) must be defined via `withProps`, not as a mixin return value. Props are available from the constructor, while mixin members only exist after `connectedCallback`. `bind` needs the property to be there immediately.
 
 ### Events
 
@@ -347,7 +347,7 @@ ctx.onCleanup(() => cancelAnimationFrame(raf));
 
 ### Context
 
-Cross-component communication via event-based context — similar to React's `useContext`. Import from `nano-wc/context` (~0.4 KB).
+Cross-component communication via event-based context, similar to React's `useContext`. Import from `nano-wc/context` (~0.4 KB).
 
 ```typescript
 import { createContext } from "nano-wc/context";
@@ -355,7 +355,7 @@ import { createContext } from "nano-wc/context";
 const tabsCtx = createContext<TabsAPI>("tabs");
 ```
 
-**Provider** — call `provide` in the parent's setup:
+**Provider**: call `provide` in the parent's setup:
 
 ```typescript
 define("x-tabs").setup((ctx) => {
@@ -367,7 +367,7 @@ define("x-tabs").setup((ctx) => {
 });
 ```
 
-**Consumer** — declare required contexts with `withContexts`. Setup is deferred until all contexts resolve:
+**Consumer**: declare required contexts with `withContexts`. Setup is deferred until all contexts resolve:
 
 ```typescript
 define("x-tab")
@@ -394,7 +394,7 @@ Keyed reconciliation for dynamic content. Import from `nano-wc/render` (~0.4 KB)
 
 #### `renderList(container, template, options)`
 
-Reconcile a data array against DOM by key. Creates, updates, removes, and reorders — without recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
+Reconcile a data array against DOM by key. Creates, updates, removes, and reorders without recreating the whole list. Skips `update` when the item reference hasn't changed (`===`).
 
 ```html
 <ul data-ref="list">
@@ -422,7 +422,7 @@ Options: `data` (readonly array), `key(item, index)` (unique key), `update(el, i
 
 #### `render(container, template, options?)`
 
-Single-item rendering. Options are optional — omit for static templates:
+Single-item rendering. Options are optional. Omit for static templates:
 
 ```typescript
 import { render } from "nano-wc/render";
@@ -436,7 +436,7 @@ render(container, profileTpl, {                         // data-driven
 
 Switching templates replaces the previous element.
 
-Both `render` and `renderList` **own the entire container** — any child not part of the current cycle is removed.
+Both `render` and `renderList` **own the entire container**: any child not part of the current cycle is removed.
 
 ## Component Communication
 
@@ -447,7 +447,7 @@ Parents pass data down through props. Children notify parents via custom events 
 The primary channel. A parent sets attributes or properties on its children, and each child reacts via its own prop stores:
 
 ```typescript
-// Parent sets attribute — child's $mode atom updates automatically
+// Parent sets attribute, child's $mode atom updates automatically
 childEl.setAttribute("mode", "dark");
 
 // Or via property
@@ -491,7 +491,7 @@ ctx.effect($theme, (theme) => {
 });
 ```
 
-You can also combine both approaches — provide a Nano Stores atom through the Context protocol so that siblings under the same parent share state without a global import:
+You can also combine both approaches: provide a Nano Stores atom through the Context protocol so that siblings under the same parent share state without a global import:
 
 ```typescript
 // parent provides a shared store via context
@@ -526,7 +526,7 @@ define("x-results-list")
 
 ### Attachments
 
-Reusable functions that receive `ctx` and wire up behavior — effects, listeners, cleanup — without creating a new component. Think composable mixins:
+Reusable functions that receive `ctx` and wire up behavior—effects, listeners, cleanup—without creating a new component. Think composable mixins:
 
 ```typescript
 export function attachRovingFocus(
@@ -611,7 +611,7 @@ nano-wc is intentionally minimal. It doesn't ship a template engine, virtual DOM
 
 **Does it work with SSR frameworks?**
 
-Yes. nano-wc is designed for hydration — render markup on the server (Astro, PHP, Rails, static HTML), then hydrate on the client. Props are read from attributes, refs are resolved from existing DOM.
+Yes. nano-wc is designed for hydration: render markup on the server (Astro, PHP, Rails, static HTML), then hydrate on the client. Props are read from attributes, refs are resolved from existing DOM.
 
 **What happens when a context provider is missing?**
 
