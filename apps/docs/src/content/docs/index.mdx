@@ -80,6 +80,50 @@ What happens:
 3. **[`.withRefs`](api#withrefs)**: declares typed refs resolved via `[data-ref="name"]` selectors
 4. **[`.setup`](api#setup)**: wires event listeners and reactive effects; everything is auto-cleaned on disconnect
 
+## Lifecycle
+
+nano-wc builds on the standard Custom Elements lifecycle with a thin reactive layer on top.
+
+### 1. Constructor
+
+Reactive prop stores are created and getter/setter descriptors are defined on the element instance. Attribute-backed props read their initial value from the DOM; JSON and property-only props start as `undefined`.
+
+The element is usable as a JS object at this point, but it is not connected to the DOM and [`setup()`](api#setup) has not run.
+
+### 2. connectedCallback
+
+All props are hydrated: each prop's `get` function is called, the raw value is parsed through the schema, and the corresponding atom is set. Then [`setup()`](api#setup) runs.
+
+If [`withContexts()`](api#withcontexts) was used, setup is deferred until all declared contexts resolve. See [Context API](cookbook#context-api) for details.
+
+### 3. attributeChangedCallback
+
+Fires when an observed attribute changes. The new value is validated through the prop's schema and pushed to the corresponding atom. Only attribute-backed props trigger this; JSON and property-only props are not observed.
+
+### 4. disconnectedCallback
+
+All registered cleanups run: event listeners are removed, store subscriptions are cancelled, and any [`onCleanup()`](api#oncleanup) callbacks execute. The cleanup list is then cleared.
+
+### Reconnection
+
+Re-connecting a previously disconnected component runs [`setup()`](api#setup) again with a fresh cleanup scope. Props that were set programmatically (via the property setter) retain their values; attribute-backed props that were never set programmatically re-read from the DOM.
+
+This means:
+- All props are re-hydrated
+- Effects and listeners are re-registered
+- Refs are re-resolved from the current DOM
+- Mixin members are re-assigned
+
+### Cleanup guarantees
+
+All of these are auto-cleaned on disconnect:
+- Event listeners registered via [`ctx.on()`](api#on)
+- Store subscriptions from [`ctx.effect()`](api#effect)
+- Bindings from [`ctx.bind()`](api#bind)
+- Custom teardown from [`ctx.onCleanup()`](api#oncleanup)
+
+If a cleanup function throws, the remaining cleanups still execute. The first error is re-thrown after all cleanups complete.
+
 ## FAQ
 
 ### Why no Shadow DOM?

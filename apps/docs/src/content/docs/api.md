@@ -1,7 +1,7 @@
 ---
 title: API
 description: Complete API reference for nano-wc
-order: 3
+order: 2
 ---
 
 ## Builder API
@@ -196,7 +196,7 @@ define("x-tab")
   });
 ```
 
-If a context never resolves (no provider ancestor), setup never runs. For dynamic or conditional access, use `consume()` directly. See the [Context API guide](guides#context-api).
+If a context never resolves (no provider ancestor), setup never runs. For dynamic or conditional access, use `consume()` directly. See the [Context API guide](cookbook#context-api).
 
 
 ### setup
@@ -379,7 +379,7 @@ Cross-component communication for parent-child relationships. Import from the se
 import { createContext } from "nano-wc/context";
 ```
 
-For a conceptual overview, see the [Context API guide](guides#context-api).
+For a conceptual overview, see the [Context API guide](cookbook#context-api).
 
 ### createContext
 
@@ -511,4 +511,4 @@ type TabsChangedEvent = TypedEvent<
 >;
 ```
 
-Combine with `HTMLElementEventMap` augmentation for app-wide type safety. See [Typed custom events](recipes#typed-custom-events) and [Augmenting HTMLElementTagNameMap](recipes#augmenting-htmlelementtagnamemap) recipes.
+Combine with `HTMLElementEventMap` augmentation for app-wide type safety. See [Typed custom events](cookbook#typed-custom-events) and [Augmenting HTMLElementTagNameMap](cookbook#augmenting-htmlelementtagnamemap) recipes.
