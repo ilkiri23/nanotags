@@ -2,6 +2,7 @@
 import { defineConfig, fontProviders } from "astro/config";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import postcssPresetEnv from "postcss-preset-env";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
@@ -10,7 +11,7 @@ import rehypeSlug from "rehype-slug";
 /** Fixes heading anchor links broken by <base href="/">: rewrites #fragment → slug#fragment */
 function rehypeFixBaseAnchors() {
   return (tree, file) => {
-    const match = file.history[0]?.match(/\/content\/docs\/(.+)\.md$/);
+    const match = file.history[0]?.match(/\/content\/docs\/(.+)\.mdx?$/);
     if (!match || match[1] === "index") return;
 
     const slug = match[1];
@@ -34,7 +35,7 @@ const nanoWcRoot = new URL("../../packages/nano-wc", import.meta.url).pathname;
 export default defineConfig({
   site: "https://psd-coder.github.io",
   base: process.env.CI ? "/nano-wc/" : "/",
-  integrations: [sitemap()],
+  integrations: [mdx(), sitemap()],
   markdown: {
     shikiConfig: {
       themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },

@@ -20,7 +20,7 @@ const examples = defineCollection({
 });
 
 const docs = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "src/content/docs" }),
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "src/content/docs" }),
   schema: z.object({
     title: z.string(),
     description: z.string(),

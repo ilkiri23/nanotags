@@ -13,6 +13,7 @@
     "format:styles": "stylelint \"src/**/*.css\" --fix"
   },
   "dependencies": {
+    "@astrojs/mdx": "^5.0.2",
     "@astrojs/sitemap": "^3.7.1",
     "@catppuccin/codemirror": "^1.0.3",
     "@codemirror/lang-css": "^6.3.1",

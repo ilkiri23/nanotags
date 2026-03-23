@@ -4,6 +4,8 @@ description: Introduction, installation and first component
 order: 1
 ---
 
+import { InstallPackage } from "~/components/InstallPackage";
+
 A thin Web Components wrapper powered by [Nano Stores](https://github.com/nanostores/nanostores) reactivity. It leans on the platform — Custom Elements, standard DOM, regular CSS — instead of reinventing them. The result is a typed, reactive component model with automatic cleanup in under 2.5 KB.
 
 ## Why nano-wc?
@@ -18,9 +20,7 @@ A thin Web Components wrapper powered by [Nano Stores](https://github.com/nanost
 
 ## Installation
 
-```bash
-npm install nano-wc nanostores
-```
+<InstallPackage pkg="nano-wc nanostores" />
 
 [`nanostores`](https://github.com/nanostores/nanostores) is a peer dependency.
 
