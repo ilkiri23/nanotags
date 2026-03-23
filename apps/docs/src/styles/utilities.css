@@ -70,7 +70,7 @@
 
   & a {
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-underline-offset: var(--spacing);
   }
 
   & a:hover {
@@ -110,7 +110,7 @@
     font-size: var(--text-sm);
     line-height: var(--leading-normal);
 
-    background: var(--color-surface-2) !important;
+    background: var(--color-surface-4) !important;
   }
 
   & code {
@@ -121,7 +121,7 @@
     font-size: 0.875em;
     color: var(--color-accent);
 
-    background: var(--color-surface-3);
+    background: var(--color-surface-4);
   }
 
   & pre code {
