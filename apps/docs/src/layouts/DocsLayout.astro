@@ -1,5 +1,6 @@
 ---
 import { Layout } from "~/components/Layout";
+import { CodeBlockWrapper } from "~/components/CodeBlockWrapper";
 import { Icon } from "~/components/Icon";
 import { MobileTableOfContents, TableOfContents } from "~/components/TableOfContents";
 import PrevNextNav from "~/components/PrevNextNav/PrevNextNav.astro";
@@ -49,4 +50,5 @@ const { title, slug, headings, prev, next } = Astro.props;
     <slot />
     <PrevNextNav prev={prev} next={next} />
   </article>
+  <CodeBlockWrapper />
 </Layout>

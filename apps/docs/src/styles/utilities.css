@@ -99,6 +99,8 @@
   }
 
   & pre {
+    position: relative;
+
     overflow-x: auto;
 
     margin-bottom: calc(var(--spacing) * 4);
