@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.0
+
+### Bug Fixes
+
+- Fix `renderOne` skipping update callback on subsequent calls without data (shared null reference caused identity check to short-circuit)
+
+### Refactoring
+
+- Align `getElement`/`getElements` generics with `one`/`many` pattern: separate overloads for tag-name and element-type instead of `E extends keyof HTMLElementTagNameMap`
+
 ## 0.14.0
 
 ### Refactoring
