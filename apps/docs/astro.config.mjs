@@ -6,6 +6,7 @@ const nanoTagsRoot = new URL("../../packages/nanotags", import.meta.url).pathnam
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://nanotags.psdcoder.dev",
   integrations: [
     docsTheme({
       project: {

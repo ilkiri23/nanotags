@@ -30,8 +30,8 @@ importers:
         specifier: ^6.0.8
         version: 6.0.8(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.1)(typescript@5.9.3)(yaml@2.8.2)
       astro-pigment:
-        specifier: ^0.13.1
-        version: 0.13.1(astro@6.0.8(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.1)(typescript@5.9.3)(yaml@2.8.2))(nanostores@1.2.0)(nanotags@packages+nanotags)(postcss@8.5.8)(sharp@0.34.5)(typescript@5.9.3)
+        specifier: ^0.15.0
+        version: 0.15.0(astro@6.0.8(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.1)(typescript@5.9.3)(yaml@2.8.2))(nanostores@1.2.0)(nanotags@packages+nanotags)(postcss@8.5.8)(sharp@0.34.5)(typescript@5.9.3)
       es-toolkit:
         specifier: ^1.45.1
         version: 1.45.1
@@ -1892,8 +1892,8 @@ packages:
     resolution: {integrity: sha512-LElXdjswlqjWrPpJFg1Fx4wpkOCxj1TDHlSV4PlaRxHGWko024xICaa97ZkMfs6DRKlCguiAI+rbXv5GWwXIkg==}
     hasBin: true
 
-  astro-pigment@0.13.1:
-    resolution: {integrity: sha512-JEKz31VHRG233Nc/OW4sHC/mErpwxFIp3rQpsDUtg23WVS3SuZ1x/s5QDeWmtTS5TFHhlJznaE0ZMy4KXi6u8Q==}
+  astro-pigment@0.15.0:
+    resolution: {integrity: sha512-locr1BeH6BJN12OiBhnEkRUYSbr+ZuPsYvoC7nXE9WrJD9eUCJV/tP6X3PL4ALu6XE3SFolf1sJlg4vVdbwVSg==}
     peerDependencies:
       astro: ^6.0.0
       nanostores: ^1.0.0
@@ -5968,7 +5968,7 @@ snapshots:
 
   astring@1.9.0: {}
 
-  astro-pigment@0.13.1(astro@6.0.8(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.1)(typescript@5.9.3)(yaml@2.8.2))(nanostores@1.2.0)(nanotags@packages+nanotags)(postcss@8.5.8)(sharp@0.34.5)(typescript@5.9.3):
+  astro-pigment@0.15.0(astro@6.0.8(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.1)(typescript@5.9.3)(yaml@2.8.2))(nanostores@1.2.0)(nanotags@packages+nanotags)(postcss@8.5.8)(sharp@0.34.5)(typescript@5.9.3):
     dependencies:
       '@astrojs/mdx': 5.0.3(astro@6.0.8(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.1)(typescript@5.9.3)(yaml@2.8.2))
       '@astrojs/sitemap': 3.7.2
